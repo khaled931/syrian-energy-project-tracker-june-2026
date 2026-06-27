@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { ClipboardList, Download, FileText, History, MapPin, Pencil, Plus, Trash2, X, Zap } from 'lucide-react';
+import { ClipboardList, Copy, Download, FileText, History, MapPin, Pencil, Plus, Trash2, X, Zap } from 'lucide-react';
 import type { Language, Metadata, Project } from '../types/project';
+import { getProjectUpdates } from '../services/projectService';
+import TimelineManager from './TimelineManager';
 import './admin.css';
 
 interface AdminDashboardProps {
@@ -64,111 +66,12 @@ const emptyForm: AdminFormState = {
   source_url: ''
 };
 
-const copy = {
-  ar: {
-    tabsProjects: 'المشاريع',
-    tabsData: 'بوابة بيانات الطاقة',
-    tabsVisits: 'تحليلات الزيارات',
-    title: 'المشاريع الإدارة',
-    addProject: 'إضافة مشروع',
-    exportCsv: 'Export CSV',
-    exportPdf: 'Export PDF',
-    delete: 'حذف',
-    edit: 'تعديل',
-    updates: 'إدارة التحديثات',
-    verified: 'Verified',
-    newProject: 'مشروع جديد',
-    save: 'حفظ',
-    cancel: 'إلغاء',
-    modalTitleAdd: 'إضافة مشروع',
-    modalTitleEdit: 'تعديل مشروع',
-    titleAr: 'عنوان المشروع (Project Title) *',
-    titleEn: '* English Title',
-    descAr: 'وصف المشروع (Project Description) *',
-    descEn: '* English Description',
-    energyType: 'نوع الطاقة (Energy Type) اختياري',
-    projectType: 'نوع المشروع (Project Type) *',
-    status: 'الحالة (Status) *',
-    capacity: 'القدرة الإنتاجية (Production Capacity)',
-    capacityHint: 'إذا لم تُحدد وحدة، سيتم افتراض kW للمشاريع الصغيرة أو MW للمشاريع الكبيرة.',
-    owner: 'المالك/المطور/الشركاء (Owner/Developer/Partners) *',
-    location: 'الموقع (Location) *',
-    cityAr: 'المدينة بالعربية',
-    cityEn: 'City in English',
-    preciseAr: 'الموقع التفصيلي بالعربية',
-    preciseEn: 'Precise location in English',
-    lat: 'Latitude',
-    lon: 'Longitude',
-    expected: 'تاريخ التشغيل المتوقع (Expected Operation Date)',
-    cost: 'التكلفة التقديرية (Estimated Cost)',
-    grid: 'الربط الشبكي',
-    risks: 'أبرز التحديات والمخاطر (Key Challenges and Risks)',
-    sources: 'مصادر المعلومات (Information Sources)',
-    sourceName: 'اسم المصدر',
-    sourceUrl: 'رابط المصدر',
-    note: 'ملاحظة: في هذه المرحلة يتم تعديل البيانات داخل الواجهة فقط. عند ربط Firebase سيتم تفعيل الحفظ الحقيقي والصلاحيات.',
-    confirmDelete: 'هل تريد حذف هذا المشروع من القائمة المؤقتة؟',
-    select: 'اختر / Select',
-    results: 'projects'
-  },
-  en: {
-    tabsProjects: 'Projects',
-    tabsData: 'Energy Data Portal',
-    tabsVisits: 'Visits analytics',
-    title: 'Projects admin',
-    addProject: 'Add project',
-    exportCsv: 'Export CSV',
-    exportPdf: 'Export PDF',
-    delete: 'Delete',
-    edit: 'Edit',
-    updates: 'Manage updates',
-    verified: 'Verified',
-    newProject: 'New project',
-    save: 'Save',
-    cancel: 'Cancel',
-    modalTitleAdd: 'Add project',
-    modalTitleEdit: 'Edit project',
-    titleAr: 'Arabic project title *',
-    titleEn: 'English title *',
-    descAr: 'Arabic project description *',
-    descEn: 'English description *',
-    energyType: 'Energy type',
-    projectType: 'Project type *',
-    status: 'Status *',
-    capacity: 'Production capacity',
-    capacityHint: 'If no unit is provided, kW is assumed for small projects and MW for large projects.',
-    owner: 'Owner/Developer/Partners *',
-    location: 'Location *',
-    cityAr: 'Arabic city',
-    cityEn: 'City in English',
-    preciseAr: 'Precise location in Arabic',
-    preciseEn: 'Precise location in English',
-    lat: 'Latitude',
-    lon: 'Longitude',
-    expected: 'Expected operation date',
-    cost: 'Estimated cost',
-    grid: 'Grid connection',
-    risks: 'Key challenges and risks',
-    sources: 'Information sources',
-    sourceName: 'Source name',
-    sourceUrl: 'Source URL',
-    note: 'Note: in this phase, edits are temporary in the interface only. Firebase will enable real saves and permissions later.',
-    confirmDelete: 'Delete this project from the temporary list?',
-    select: 'Select',
-    results: 'projects'
-  }
-};
-
 function getLabel(items: { id: string; ar: string; en: string }[], id: string, lang: Language) {
   return items.find((item) => item.id === id)?.[lang] ?? id;
 }
 
 function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\u0600-\u06FF]+/g, '-')
-    .replace(/^-+|-+$/g, '') || `project-${Date.now()}`;
+  return value.toLowerCase().trim().replace(/[^a-z0-9\u0600-\u06FF]+/g, '-').replace(/^-+|-+$/g, '') || `project-${Date.now()}`;
 }
 
 function projectToForm(project: Project): AdminFormState {
@@ -201,17 +104,16 @@ function projectToForm(project: Project): AdminFormState {
 }
 
 export default function AdminDashboard({ language, projects, metadata }: AdminDashboardProps) {
-  const t = copy[language];
+  const isAr = language === 'ar';
+  const tr = (ar: string, en: string) => isAr ? ar : en;
   const [managedProjects, setManagedProjects] = useState<Project[]>(projects);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [timelineProject, setTimelineProject] = useState<Project | null>(null);
   const [form, setForm] = useState<AdminFormState>(emptyForm);
+  const [copyMessage, setCopyMessage] = useState('');
 
-  const projectCountLabel = useMemo(() => `${managedProjects.length} ${t.results}`, [managedProjects.length, t.results]);
-
-  const updateForm = (field: keyof AdminFormState, value: string) => {
-    setForm((current) => ({ ...current, [field]: value }));
-  };
+  const updateForm = (field: keyof AdminFormState, value: string) => setForm((current) => ({ ...current, [field]: value }));
 
   const openAddModal = () => {
     setEditingId(null);
@@ -266,26 +168,19 @@ export default function AdminDashboard({ language, projects, metadata }: AdminDa
       created_at: now,
       updated_at: now
     };
-
-    setManagedProjects((current) => {
-      if (!editingId) return [project, ...current];
-      return current.map((item) => (item.id === editingId ? project : item));
-    });
+    setManagedProjects((current) => editingId ? current.map((item) => item.id === editingId ? project : item) : [project, ...current]);
     closeModal();
   };
 
   const deleteProject = (projectId: string) => {
-    if (!window.confirm(t.confirmDelete)) return;
+    if (!window.confirm(tr('هل تريد حذف هذا المشروع من القائمة المؤقتة؟', 'Delete this project from the temporary list?'))) return;
     setManagedProjects((current) => current.filter((project) => project.id !== projectId));
   };
 
   const exportCsv = () => {
     const headers = ['id', 'title_ar', 'title_en', 'governorate', 'energy_type', 'project_type', 'status', 'capacity', 'owner', 'source_url'];
-    const rows = managedProjects.map((project) => headers.map((key) => {
-      const value = String(project[key as keyof Project] ?? '').replace(/"/g, '""');
-      return `"${value}"`;
-    }).join(','));
-    const csv = [headers.join(','), ...rows].join('\n');
+    const rows = managedProjects.map((project) => headers.map((key) => `"${String(project[key as keyof Project] ?? '').replace(/"/g, '""')}"`).join(','));
+    const csv = '\uFEFF' + [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -295,24 +190,28 @@ export default function AdminDashboard({ language, projects, metadata }: AdminDa
     URL.revokeObjectURL(url);
   };
 
-  const exportPdf = () => {
-    window.print();
+  const copyProjectJson = async (project: Project) => {
+    const payload = { project, updates: getProjectUpdates(project.id) };
+    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+    setCopyMessage(tr('تم نسخ JSON', 'JSON copied'));
+    window.setTimeout(() => setCopyMessage(''), 1800);
   };
 
   return (
     <section className="admin-management-shell">
       <nav className="admin-tabs">
-        <button className="active">{t.tabsProjects}</button>
-        <button>{t.tabsData}</button>
-        <button>{t.tabsVisits}</button>
+        <button className="active">{tr('المشاريع', 'Projects')}</button>
+        <button>{tr('بوابة بيانات الطاقة', 'Energy Data Portal')}</button>
+        <button>{tr('تحليلات الزيارات', 'Visits analytics')}</button>
       </nav>
 
       <div className="admin-management-header">
-        <h2>{t.title} ({projectCountLabel})</h2>
+        <h2>{tr('المشاريع الإدارة', 'Projects admin')} ({managedProjects.length} projects)</h2>
         <div className="admin-actions-bar">
-          <button className="admin-secondary" onClick={exportCsv}><Download size={16} /> {t.exportCsv}</button>
-          <button className="admin-secondary" onClick={exportPdf}><FileText size={16} /> {t.exportPdf}</button>
-          <button className="admin-primary" onClick={openAddModal}><Plus size={16} /> {t.addProject}</button>
+          {copyMessage && <span className="copy-toast">{copyMessage}</span>}
+          <button className="admin-secondary" onClick={exportCsv}><Download size={16} /> Export CSV</button>
+          <button className="admin-secondary" onClick={() => window.print()}><FileText size={16} /> Export PDF</button>
+          <button className="admin-primary" onClick={openAddModal}><Plus size={16} /> {tr('إضافة مشروع', 'Add project')}</button>
         </div>
       </div>
 
@@ -320,9 +219,9 @@ export default function AdminDashboard({ language, projects, metadata }: AdminDa
         {managedProjects.map((project) => (
           <article className="admin-project-row" key={project.id}>
             <div className="admin-project-main">
-              <h3>{language === 'ar' ? project.title_ar : project.title_en}</h3>
+              <h3>{isAr ? project.title_ar : project.title_en}</h3>
               <div className="admin-badges">
-                <span className="verified-badge">{t.verified}</span>
+                <span className="verified-badge">Verified</span>
                 <span>{getLabel(metadata.statuses, project.status, language)}</span>
                 <span>{getLabel(metadata.energyTypes, project.energy_type, language)}</span>
                 <span>{getLabel(metadata.projectTypes, project.project_type, language)}</span>
@@ -330,13 +229,14 @@ export default function AdminDashboard({ language, projects, metadata }: AdminDa
               <div className="admin-row-meta">
                 <span><Zap size={13} /> {project.capacity}</span>
                 <span>{project.owner}</span>
-                <span><MapPin size={13} /> {language === 'ar' ? project.city_ar : project.city_en}</span>
+                <span><MapPin size={13} /> {isAr ? project.city_ar : project.city_en}</span>
               </div>
             </div>
             <div className="admin-row-actions">
-              <button className="danger" onClick={() => deleteProject(project.id)}><Trash2 size={14} /> {t.delete}</button>
-              <button onClick={() => openEditModal(project)}><Pencil size={14} /> {t.edit}</button>
-              <button><History size={14} /> {t.updates}</button>
+              <button className="danger" onClick={() => deleteProject(project.id)}><Trash2 size={14} /> {tr('حذف', 'Delete')}</button>
+              <button onClick={() => openEditModal(project)}><Pencil size={14} /> {tr('تعديل', 'Edit')}</button>
+              <button onClick={() => setTimelineProject(project)}><History size={14} /> {tr('إدارة التحديثات', 'Manage updates')}</button>
+              <button onClick={() => copyProjectJson(project)}><Copy size={14} /> JSON</button>
             </div>
           </article>
         ))}
@@ -346,54 +246,46 @@ export default function AdminDashboard({ language, projects, metadata }: AdminDa
         <div className="admin-modal-backdrop" role="dialog" aria-modal="true">
           <form className="admin-project-modal" onSubmit={saveProject}>
             <button type="button" className="modal-close" onClick={closeModal}><X size={18} /></button>
-            <h3>{editingId ? t.modalTitleEdit : t.modalTitleAdd}</h3>
-
+            <h3>{editingId ? tr('تعديل مشروع', 'Edit project') : tr('إضافة مشروع', 'Add project')}</h3>
             <div className="form-grid two-cols">
-              <label>{t.titleAr}<input required value={form.title_ar} onChange={(event) => updateForm('title_ar', event.target.value)} placeholder="أدخل عنوان المشروع بالعربية" /></label>
-              <label>{t.titleEn}<input value={form.title_en} onChange={(event) => updateForm('title_en', event.target.value)} placeholder="Enter project title in English" /></label>
-              <label>{t.descAr}<textarea required value={form.description_ar} onChange={(event) => updateForm('description_ar', event.target.value)} placeholder="أدخل وصف المشروع بالعربية" /></label>
-              <label>{t.descEn}<textarea value={form.description_en} onChange={(event) => updateForm('description_en', event.target.value)} placeholder="Enter project description in English" /></label>
+              <label>{tr('عنوان المشروع بالعربية *', 'Arabic project title *')}<input required value={form.title_ar} onChange={(event) => updateForm('title_ar', event.target.value)} /></label>
+              <label>{tr('English Title *', 'English title *')}<input value={form.title_en} onChange={(event) => updateForm('title_en', event.target.value)} /></label>
+              <label>{tr('وصف المشروع بالعربية *', 'Arabic description *')}<textarea required value={form.description_ar} onChange={(event) => updateForm('description_ar', event.target.value)} /></label>
+              <label>{tr('English Description', 'English description')}<textarea value={form.description_en} onChange={(event) => updateForm('description_en', event.target.value)} /></label>
             </div>
-
             <div className="form-grid three-cols">
-              <label>{t.energyType}<select value={form.energy_type} onChange={(event) => updateForm('energy_type', event.target.value)}><option value="">— غير محدد —</option>{metadata.energyTypes.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></label>
-              <label>{t.projectType}<select required value={form.project_type} onChange={(event) => updateForm('project_type', event.target.value)}><option value="">{t.select}</option>{metadata.projectTypes.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></label>
-              <label>{t.status}<select required value={form.status} onChange={(event) => updateForm('status', event.target.value)}><option value="">{t.select}</option>{metadata.statuses.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></label>
+              <label>{tr('نوع الطاقة', 'Energy type')}<select value={form.energy_type} onChange={(event) => updateForm('energy_type', event.target.value)}><option value="">{tr('غير محدد', 'Not selected')}</option>{metadata.energyTypes.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></label>
+              <label>{tr('نوع المشروع *', 'Project type *')}<select required value={form.project_type} onChange={(event) => updateForm('project_type', event.target.value)}><option value="">Select</option>{metadata.projectTypes.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></label>
+              <label>{tr('الحالة *', 'Status *')}<select required value={form.status} onChange={(event) => updateForm('status', event.target.value)}><option value="">Select</option>{metadata.statuses.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></label>
             </div>
-
             <div className="form-grid two-cols">
-              <label>{t.capacity}<input value={form.capacity} onChange={(event) => updateForm('capacity', event.target.value)} placeholder="مثال: 150 kW" /><small>{t.capacityHint}</small></label>
-              <label>{t.location}<select required value={form.governorate} onChange={(event) => updateForm('governorate', event.target.value)}><option value="">{t.select}</option>{metadata.governorates.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></label>
-              <label>{t.cityAr}<input value={form.city_ar} onChange={(event) => updateForm('city_ar', event.target.value)} /></label>
-              <label>{t.cityEn}<input value={form.city_en} onChange={(event) => updateForm('city_en', event.target.value)} /></label>
-              <label>{t.preciseAr}<input value={form.precise_location_ar} onChange={(event) => updateForm('precise_location_ar', event.target.value)} /></label>
-              <label>{t.preciseEn}<input value={form.precise_location_en} onChange={(event) => updateForm('precise_location_en', event.target.value)} /></label>
-              <label>{t.lat}<input value={form.latitude} onChange={(event) => updateForm('latitude', event.target.value)} /></label>
-              <label>{t.lon}<input value={form.longitude} onChange={(event) => updateForm('longitude', event.target.value)} /></label>
+              <label>{tr('القدرة الإنتاجية', 'Capacity')}<input value={form.capacity} onChange={(event) => updateForm('capacity', event.target.value)} placeholder="150 kW" /></label>
+              <label>{tr('المحافظة/الموقع *', 'Governorate/location *')}<select required value={form.governorate} onChange={(event) => updateForm('governorate', event.target.value)}><option value="">Select</option>{metadata.governorates.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></label>
+              <label>{tr('المدينة بالعربية', 'Arabic city')}<input value={form.city_ar} onChange={(event) => updateForm('city_ar', event.target.value)} /></label>
+              <label>{tr('City in English', 'City in English')}<input value={form.city_en} onChange={(event) => updateForm('city_en', event.target.value)} /></label>
+              <label>{tr('الموقع التفصيلي بالعربية', 'Arabic precise location')}<input value={form.precise_location_ar} onChange={(event) => updateForm('precise_location_ar', event.target.value)} /></label>
+              <label>{tr('Precise location in English', 'Precise location in English')}<input value={form.precise_location_en} onChange={(event) => updateForm('precise_location_en', event.target.value)} /></label>
+              <label>Latitude<input value={form.latitude} onChange={(event) => updateForm('latitude', event.target.value)} /></label>
+              <label>Longitude<input value={form.longitude} onChange={(event) => updateForm('longitude', event.target.value)} /></label>
             </div>
-
             <div className="form-grid two-cols">
-              <label>{t.owner}<textarea required value={form.owner} onChange={(event) => updateForm('owner', event.target.value)} placeholder="Owner/Developer/Partners / المالك/المطور/الشركاء" /></label>
-              <label>{t.risks}<textarea value={form.key_risks} onChange={(event) => updateForm('key_risks', event.target.value)} placeholder="Key challenges and risks" /></label>
-              <label>{t.expected}<input type="date" value={form.expected_cod} onChange={(event) => updateForm('expected_cod', event.target.value)} /></label>
-              <label>{t.cost}<input value={form.estimated_cost} onChange={(event) => updateForm('estimated_cost', event.target.value)} placeholder="Estimated cost / التكلفة التقديرية" /></label>
-              <label>{t.grid}<input value={form.grid_connection} onChange={(event) => updateForm('grid_connection', event.target.value)} /></label>
+              <label>{tr('المالك/المطور/الشركاء *', 'Owner/developer/partners *')}<textarea required value={form.owner} onChange={(event) => updateForm('owner', event.target.value)} /></label>
+              <label>{tr('التحديات والمخاطر', 'Risks')}<textarea value={form.key_risks} onChange={(event) => updateForm('key_risks', event.target.value)} /></label>
+              <label>{tr('تاريخ التشغيل المتوقع', 'Expected operation date')}<input type="date" value={form.expected_cod} onChange={(event) => updateForm('expected_cod', event.target.value)} /></label>
+              <label>{tr('التكلفة التقديرية', 'Estimated cost')}<input value={form.estimated_cost} onChange={(event) => updateForm('estimated_cost', event.target.value)} /></label>
+              <label>{tr('الربط الشبكي', 'Grid connection')}<input value={form.grid_connection} onChange={(event) => updateForm('grid_connection', event.target.value)} /></label>
             </div>
-
             <div className="form-grid two-cols sources-grid">
-              <label>{t.sources}<input value={form.source_name} onChange={(event) => updateForm('source_name', event.target.value)} placeholder={t.sourceName} /></label>
-              <label>&nbsp;<input value={form.source_url} onChange={(event) => updateForm('source_url', event.target.value)} placeholder={t.sourceUrl} /></label>
+              <label>{tr('اسم المصدر', 'Source name')}<input value={form.source_name} onChange={(event) => updateForm('source_name', event.target.value)} /></label>
+              <label>{tr('رابط المصدر', 'Source URL')}<input value={form.source_url} onChange={(event) => updateForm('source_url', event.target.value)} /></label>
             </div>
-
-            <p className="admin-form-note"><ClipboardList size={15} /> {t.note}</p>
-
-            <div className="modal-footer">
-              <button type="button" className="admin-secondary" onClick={closeModal}>{t.cancel}</button>
-              <button type="submit" className="admin-primary">{t.save}</button>
-            </div>
+            <p className="admin-form-note"><ClipboardList size={15} /> {tr('الحفظ مؤقت الآن، وسيصبح دائماً عند ربط Firebase.', 'Saving is temporary now and will become persistent after Firebase integration.')}</p>
+            <div className="modal-footer"><button type="button" className="admin-secondary" onClick={closeModal}>{tr('إلغاء', 'Cancel')}</button><button type="submit" className="admin-primary">{tr('حفظ', 'Save')}</button></div>
           </form>
         </div>
       )}
+
+      {timelineProject && <TimelineManager language={language} metadata={metadata} project={timelineProject} initialUpdates={getProjectUpdates(timelineProject.id)} onClose={() => setTimelineProject(null)} />}
     </section>
   );
 }

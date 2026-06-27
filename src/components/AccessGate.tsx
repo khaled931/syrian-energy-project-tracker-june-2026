@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithRedirect, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { firebaseAuth, isFirebaseConfigured } from '../firebase/firebaseClient';
 import { canManage, readAllowedUsers } from '../utils/permissions';
@@ -22,6 +22,18 @@ export default function AccessGate({ children, language }: AccessGateProps) {
       setMessage(isAr ? 'Firebase Auth غير مفعّل بعد.' : 'Firebase Auth is not enabled yet.');
       return;
     }
+
+    getRedirectResult(firebaseAuth)
+      .then(async (result) => {
+        if (!result?.user) return;
+        if (!canManage(result.user.email)) {
+          await signOut(firebaseAuth);
+          setUser(null);
+          setMessage(isAr ? 'هذا الحساب غير مصرح له بإدارة المنصة.' : 'This account is not allowed to manage the platform.');
+        }
+      })
+      .catch((error) => setMessage(error instanceof Error ? error.message : 'Login failed'));
+
     return onAuthStateChanged(firebaseAuth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
@@ -32,12 +44,7 @@ export default function AccessGate({ children, language }: AccessGateProps) {
     if (!firebaseAuth) return;
     try {
       setMessage('');
-      const result = await signInWithPopup(firebaseAuth, new GoogleAuthProvider());
-      if (!canManage(result.user.email)) {
-        await signOut(firebaseAuth);
-        setUser(null);
-        setMessage(isAr ? 'هذا الحساب غير مصرح له بإدارة المنصة.' : 'This account is not allowed to manage the platform.');
-      }
+      await signInWithRedirect(firebaseAuth, new GoogleAuthProvider());
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Login failed');
     }

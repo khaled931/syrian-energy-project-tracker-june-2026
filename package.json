@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite --config vite.config.mjs",
     "build": "vite build --config vite.config.mjs",
+    "build:github": "vite build --config vite.config.mjs",
+    "build:external": "vite build --config vite.config.mjs --base=/",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
   },

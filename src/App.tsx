@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, BarChart3, CheckCircle2, Clock3, ExternalLink, Globe2, Home, Languages, MapPin, RotateCcw, Share2, Zap } from 'lucide-react';
+import { ArrowLeft, BarChart3, CheckCircle2, Clock3, ExternalLink, Home, Languages, MapPin, RotateCcw, Search, Share2, Zap } from 'lucide-react';
 import AdminDashboard from './admin/AdminDashboard';
 import type { Language, Project } from './types/project';
 import { getAllProjects, getMetadata, getProjectUpdates, getPublishedProjects } from './services/projectService';
@@ -42,7 +42,7 @@ const labels = {
     current: 'حالية',
     share: 'مشاركة',
     back: 'رجوع',
-    follow: 'ثانٍ عن وصل المشروع',
+    follow: 'تابع أين وصل المشروع',
     openGoogle: 'فتح في خرائط Google',
     source: 'المصدر',
     noResults: 'لا توجد مشاريع مطابقة للفلاتر الحالية.',
@@ -292,7 +292,7 @@ function App() {
           <nav className="tab-row">
             <button className="tab active">{t.projects}</button>
             <button className="tab">{t.dataPortal}</button>
-            <button className="tab outline"><BarChart3 size={16} /> {t.stats}</button>
+            <button className="tab outline">{t.stats}</button>
           </nav>
 
           <div className="search-strip">

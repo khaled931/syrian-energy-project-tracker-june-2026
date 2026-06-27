@@ -1,0 +1,5 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],(€‰…Í”è€œ½ÍåÉ¥…¸µ•¹•ÉäµÁÉ½©•ĞµÑÉ…­•Èµ©Õ¹”´ÈÀÈØ¼œ)ô¤ì(

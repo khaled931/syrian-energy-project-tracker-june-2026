@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Plus, X } from 'lucide-react';
 import type { Language, Metadata, Project, ProjectUpdate } from '../types/project';
+import { getFirebaseProjectUpdates, saveFirebaseProjectUpdate, useFirebaseData } from '../services/firebaseProjectService';
 
 interface TimelineManagerProps {
   language: Language;
@@ -25,14 +26,32 @@ const emptyUpdate = {
 export default function TimelineManager({ language, metadata, project, initialUpdates, onClose }: TimelineManagerProps) {
   const [updates, setUpdates] = useState<ProjectUpdate[]>(initialUpdates);
   const [form, setForm] = useState(emptyUpdate);
+  const [message, setMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const isAr = language === 'ar';
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadUpdates() {
+      if (!useFirebaseData) return;
+      try {
+        const firebaseUpdates = await getFirebaseProjectUpdates(project.id);
+        if (isMounted) setUpdates(firebaseUpdates);
+      } catch (error) {
+        if (isMounted) setMessage(error instanceof Error ? error.message : 'Failed to load updates');
+      }
+    }
+    loadUpdates();
+    return () => { isMounted = false; };
+  }, [project.id]);
 
   const updateField = (field: keyof typeof emptyUpdate, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  const addUpdate = (event: FormEvent) => {
+  const addUpdate = async (event: FormEvent) => {
     event.preventDefault();
+    setIsSaving(true);
     const update: ProjectUpdate = {
       id: `update-${Date.now()}`,
       project_id: project.id,
@@ -45,13 +64,23 @@ export default function TimelineManager({ language, metadata, project, initialUp
       source_name: form.source_name || project.source_name,
       source_url: form.source_url || project.source_url
     };
-    setUpdates((current) => [update, ...current]);
-    setForm(emptyUpdate);
+
+    try {
+      if (useFirebaseData) await saveFirebaseProjectUpdate(update);
+      setUpdates((current) => [update, ...current]);
+      setForm(emptyUpdate);
+      setMessage(useFirebaseData ? (isAr ? 'تم حفظ التحديث في Firebase' : 'Update saved to Firebase') : (isAr ? 'تمت إضافة التحديث مؤقتاً' : 'Update added temporarily'));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Save failed');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const copyTimelineJson = async () => {
     const text = JSON.stringify(updates, null, 2);
     await navigator.clipboard.writeText(text);
+    setMessage(isAr ? 'تم نسخ JSON' : 'JSON copied');
   };
 
   return (
@@ -60,6 +89,7 @@ export default function TimelineManager({ language, metadata, project, initialUp
         <button type="button" className="modal-close" onClick={onClose}><X size={18} /></button>
         <h3>{isAr ? 'إدارة تحديثات المشروع' : 'Manage project updates'}</h3>
         <p className="timeline-project-title">{isAr ? project.title_ar : project.title_en}</p>
+        {message && <p className="admin-form-note">{message}</p>}
 
         <form className="timeline-form" onSubmit={addUpdate}>
           <div className="form-grid two-cols">
@@ -74,7 +104,7 @@ export default function TimelineManager({ language, metadata, project, initialUp
           </div>
           <div className="modal-footer">
             <button type="button" className="admin-secondary" onClick={copyTimelineJson}>{isAr ? 'نسخ JSON للتحديثات' : 'Copy updates JSON'}</button>
-            <button type="submit" className="admin-primary"><Plus size={16} /> {isAr ? 'إضافة تحديث' : 'Add update'}</button>
+            <button type="submit" className="admin-primary" disabled={isSaving}><Plus size={16} /> {isSaving ? (isAr ? 'جار الحفظ...' : 'Saving...') : (isAr ? 'إضافة تحديث' : 'Add update')}</button>
           </div>
         </form>
 

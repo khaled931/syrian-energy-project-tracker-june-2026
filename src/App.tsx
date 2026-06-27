@@ -1,13 +1,12 @@
-import { useMemo, useState } from 'react';
-import { ExternalLink, Globe2, Moon, Search, Sun, X } from 'lucide-react';
-import type { Language, Metadata, Project, ProjectUpdate, Theme } from './types/project';
-import projectsData from '../data/projects.json';
-import updatesData from '../data/project-updates.json';
-import metadataData from '../data/metadata.json';
+import { useEffect, useMemo, useState } from 'react';
+import { ExternalLink, Globe2, Home, Moon, Search, Sun, X } from 'lucide-react';
+import AdminDashboard from './admin/AdminDashboard';
+import type { Language, Project, Theme } from './types/project';
+import { getAllProjects, getMetadata, getProjectUpdates, getPublishedProjects } from './services/projectService';
 
-const projects = projectsData as Project[];
-const updates = updatesData as ProjectUpdate[];
-const metadata = metadataData as Metadata;
+const allProjects = getAllProjects();
+const publicProjects = getPublishedProjects();
+const metadata = getMetadata();
 
 const labels = {
   ar: {
@@ -27,7 +26,7 @@ const labels = {
     source: 'المصدر',
     timeline: 'تابع أين وصل المشروع',
     admin: 'لوحة الإدارة',
-    adminNote: 'هذه لوحة إدارة أولية. في مرحلة GitHub-only لا يتم الحفظ من المتصفح. سيتم تفعيل الحفظ الحقيقي لاحقاً عبر Firebase.',
+    home: 'الرئيسية',
     close: 'إغلاق',
     owner: 'المالك',
     developer: 'المنفذ',
@@ -55,7 +54,7 @@ const labels = {
     source: 'Source',
     timeline: 'Project timeline',
     admin: 'Admin dashboard',
-    adminNote: 'This is an admin scaffold. In the GitHub-only phase, browser writes are disabled. Real writes will be implemented later with Firebase.',
+    home: 'Home',
     close: 'Close',
     owner: 'Owner',
     developer: 'Developer',
@@ -84,6 +83,7 @@ function getMapUrl(project: Project) {
 function App() {
   const [language, setLanguage] = useState<Language>('ar');
   const [theme, setTheme] = useState<Theme>('light');
+  const [route, setRoute] = useState(window.location.hash);
   const [query, setQuery] = useState('');
   const [governorate, setGovernorate] = useState('all');
   const [energyType, setEnergyType] = useState('all');
@@ -91,14 +91,19 @@ function App() {
   const [projectType, setProjectType] = useState('all');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
+  useEffect(() => {
+    const handleHashChange = () => setRoute(window.location.hash);
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   const t = labels[language];
-  const isAdmin = window.location.hash === '#admin';
+  const isAdmin = route === '#admin';
   const direction = language === 'ar' ? 'rtl' : 'ltr';
 
   const filteredProjects = useMemo(() => {
     const lowerQuery = query.trim().toLowerCase();
-    return projects
-      .filter((project) => project.is_published)
+    return publicProjects
       .filter((project) => governorate === 'all' || project.governorate === governorate)
       .filter((project) => energyType === 'all' || project.energy_type === energyType)
       .filter((project) => status === 'all' || project.status === status)
@@ -121,7 +126,7 @@ function App() {
 
   const selectedUpdates = useMemo(() => {
     if (!selectedProject) return [];
-    return updates.filter((update) => update.project_id === selectedProject.id);
+    return getProjectUpdates(selectedProject.id);
   }, [selectedProject]);
 
   return (
@@ -132,28 +137,20 @@ function App() {
           <h1>{t.title}</h1>
         </div>
         <div className="actions">
+          <a className="admin-link" href={isAdmin ? '#' : '#admin'}>
+            {isAdmin ? <Home size={18} /> : null} {isAdmin ? t.home : t.admin}
+          </a>
           <button onClick={() => setLanguage(language === 'ar' ? 'en' : 'ar')}>
             <Globe2 size={18} /> {language === 'ar' ? 'EN' : 'AR'}
           </button>
           <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
-          <a className="admin-link" href="#admin">{t.admin}</a>
         </div>
       </header>
 
       {isAdmin ? (
-        <section className="admin-panel glass">
-          <h2>{t.admin}</h2>
-          <p>{t.adminNote}</p>
-          <div className="admin-grid">
-            <input placeholder="Project title" />
-            <input placeholder="Governorate" />
-            <input placeholder="Energy type" />
-            <input placeholder="Status" />
-            <textarea placeholder="Project description" />
-          </div>
-        </section>
+        <AdminDashboard language={language} projects={allProjects} metadata={metadata} />
       ) : (
         <>
           <section className="hero glass">

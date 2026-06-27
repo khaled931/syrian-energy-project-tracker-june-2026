@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ClipboardList, Copy, Download, FileText, History, MapPin, Pencil, Plus, Trash2, X, Zap } from 'lucide-react';
 import type { Language, Metadata, Project } from '../types/project';
 import { getProjectUpdates } from '../services/projectService';
+import { deleteFirebaseProject, getFirebaseProjectUpdates, getFirebaseProjects, saveFirebaseProject, useFirebaseData } from '../services/firebaseProjectService';
 import TimelineManager from './TimelineManager';
 import './admin.css';
 
@@ -40,30 +41,7 @@ type AdminFormState = {
 };
 
 const emptyForm: AdminFormState = {
-  title_ar: '',
-  title_en: '',
-  description_ar: '',
-  description_en: '',
-  governorate: '',
-  city_ar: '',
-  city_en: '',
-  precise_location_ar: '',
-  precise_location_en: '',
-  latitude: '',
-  longitude: '',
-  energy_type: '',
-  project_type: '',
-  status: '',
-  capacity: '',
-  owner: '',
-  developer: '',
-  partners: '',
-  expected_cod: '',
-  estimated_cost: '',
-  grid_connection: '',
-  key_risks: '',
-  source_name: '',
-  source_url: ''
+  title_ar: '', title_en: '', description_ar: '', description_en: '', governorate: '', city_ar: '', city_en: '', precise_location_ar: '', precise_location_en: '', latitude: '', longitude: '', energy_type: '', project_type: '', status: '', capacity: '', owner: '', developer: '', partners: '', expected_cod: '', estimated_cost: '', grid_connection: '', key_risks: '', source_name: '', source_url: ''
 };
 
 function getLabel(items: { id: string; ar: string; en: string }[], id: string, lang: Language) {
@@ -112,6 +90,27 @@ export default function AdminDashboard({ language, projects, metadata }: AdminDa
   const [timelineProject, setTimelineProject] = useState<Project | null>(null);
   const [form, setForm] = useState<AdminFormState>(emptyForm);
   const [copyMessage, setCopyMessage] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadFirebaseProjects() {
+      if (!useFirebaseData) return;
+      try {
+        setStatusMessage(tr('جار تحميل مشاريع Firebase...', 'Loading Firebase projects...'));
+        const firebaseProjects = await getFirebaseProjects();
+        if (isMounted) {
+          setManagedProjects(firebaseProjects);
+          setStatusMessage(firebaseProjects.length ? tr('تم تحميل المشاريع من Firebase', 'Projects loaded from Firebase') : tr('لا توجد مشاريع في Firebase بعد', 'No Firebase projects yet'));
+        }
+      } catch (error) {
+        if (isMounted) setStatusMessage(error instanceof Error ? error.message : 'Firebase loading failed');
+      }
+    }
+    loadFirebaseProjects();
+    return () => { isMounted = false; };
+  }, [language]);
 
   const updateForm = (field: keyof AdminFormState, value: string) => setForm((current) => ({ ...current, [field]: value }));
 
@@ -133,8 +132,9 @@ export default function AdminDashboard({ language, projects, metadata }: AdminDa
     setForm(emptyForm);
   };
 
-  const saveProject = (event: FormEvent) => {
+  const saveProject = async (event: FormEvent) => {
     event.preventDefault();
+    setIsSaving(true);
     const now = new Date().toISOString().slice(0, 10);
     const project: Project = {
       id: editingId ?? `project-${Date.now()}`,
@@ -165,16 +165,31 @@ export default function AdminDashboard({ language, projects, metadata }: AdminDa
       source_url: form.source_url || 'https://syrianrenewables.com/',
       is_published: true,
       is_featured: false,
-      created_at: now,
+      created_at: editingId ? (managedProjects.find((item) => item.id === editingId)?.created_at ?? now) : now,
       updated_at: now
     };
-    setManagedProjects((current) => editingId ? current.map((item) => item.id === editingId ? project : item) : [project, ...current]);
-    closeModal();
+
+    try {
+      if (useFirebaseData) await saveFirebaseProject(project);
+      setManagedProjects((current) => editingId ? current.map((item) => item.id === editingId ? project : item) : [project, ...current]);
+      setStatusMessage(useFirebaseData ? tr('تم الحفظ في Firebase', 'Saved to Firebase') : tr('تم الحفظ مؤقتاً', 'Saved temporarily'));
+      closeModal();
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : 'Save failed');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const deleteProject = (projectId: string) => {
-    if (!window.confirm(tr('هل تريد حذف هذا المشروع من القائمة المؤقتة؟', 'Delete this project from the temporary list?'))) return;
-    setManagedProjects((current) => current.filter((project) => project.id !== projectId));
+  const deleteProject = async (projectId: string) => {
+    if (!window.confirm(tr('هل تريد حذف هذا المشروع؟', 'Delete this project?'))) return;
+    try {
+      if (useFirebaseData) await deleteFirebaseProject(projectId);
+      setManagedProjects((current) => current.filter((project) => project.id !== projectId));
+      setStatusMessage(useFirebaseData ? tr('تم الحذف من Firebase', 'Deleted from Firebase') : tr('تم الحذف مؤقتاً', 'Deleted temporarily'));
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : 'Delete failed');
+    }
   };
 
   const exportCsv = () => {
@@ -191,8 +206,8 @@ export default function AdminDashboard({ language, projects, metadata }: AdminDa
   };
 
   const copyProjectJson = async (project: Project) => {
-    const payload = { project, updates: getProjectUpdates(project.id) };
-    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+    const updates = useFirebaseData ? await getFirebaseProjectUpdates(project.id) : getProjectUpdates(project.id);
+    await navigator.clipboard.writeText(JSON.stringify({ project, updates }, null, 2));
     setCopyMessage(tr('تم نسخ JSON', 'JSON copied'));
     window.setTimeout(() => setCopyMessage(''), 1800);
   };
@@ -208,6 +223,7 @@ export default function AdminDashboard({ language, projects, metadata }: AdminDa
       <div className="admin-management-header">
         <h2>{tr('المشاريع الإدارة', 'Projects admin')} ({managedProjects.length} projects)</h2>
         <div className="admin-actions-bar">
+          {statusMessage && <span className="copy-toast">{statusMessage}</span>}
           {copyMessage && <span className="copy-toast">{copyMessage}</span>}
           <button className="admin-secondary" onClick={exportCsv}><Download size={16} /> Export CSV</button>
           <button className="admin-secondary" onClick={() => window.print()}><FileText size={16} /> Export PDF</button>
@@ -221,7 +237,7 @@ export default function AdminDashboard({ language, projects, metadata }: AdminDa
             <div className="admin-project-main">
               <h3>{isAr ? project.title_ar : project.title_en}</h3>
               <div className="admin-badges">
-                <span className="verified-badge">Verified</span>
+                <span className="verified-badge">{useFirebaseData ? 'Firebase' : 'JSON'}</span>
                 <span>{getLabel(metadata.statuses, project.status, language)}</span>
                 <span>{getLabel(metadata.energyTypes, project.energy_type, language)}</span>
                 <span>{getLabel(metadata.projectTypes, project.project_type, language)}</span>
@@ -279,13 +295,13 @@ export default function AdminDashboard({ language, projects, metadata }: AdminDa
               <label>{tr('اسم المصدر', 'Source name')}<input value={form.source_name} onChange={(event) => updateForm('source_name', event.target.value)} /></label>
               <label>{tr('رابط المصدر', 'Source URL')}<input value={form.source_url} onChange={(event) => updateForm('source_url', event.target.value)} /></label>
             </div>
-            <p className="admin-form-note"><ClipboardList size={15} /> {tr('الحفظ مؤقت الآن، وسيصبح دائماً عند ربط Firebase.', 'Saving is temporary now and will become persistent after Firebase integration.')}</p>
-            <div className="modal-footer"><button type="button" className="admin-secondary" onClick={closeModal}>{tr('إلغاء', 'Cancel')}</button><button type="submit" className="admin-primary">{tr('حفظ', 'Save')}</button></div>
+            <p className="admin-form-note"><ClipboardList size={15} /> {useFirebaseData ? tr('الحفظ الحقيقي مفعل عبر Firebase.', 'Real saving is enabled through Firebase.') : tr('الحفظ مؤقت الآن.', 'Saving is temporary now.')}</p>
+            <div className="modal-footer"><button type="button" className="admin-secondary" onClick={closeModal}>{tr('إلغاء', 'Cancel')}</button><button type="submit" className="admin-primary" disabled={isSaving}>{isSaving ? tr('جار الحفظ...', 'Saving...') : tr('حفظ', 'Save')}</button></div>
           </form>
         </div>
       )}
 
-      {timelineProject && <TimelineManager language={language} metadata={metadata} project={timelineProject} initialUpdates={getProjectUpdates(timelineProject.id)} onClose={() => setTimelineProject(null)} />}
+      {timelineProject && <TimelineManager language={language} metadata={metadata} project={timelineProject} initialUpdates={useFirebaseData ? [] : getProjectUpdates(timelineProject.id)} onClose={() => setTimelineProject(null)} />}
     </section>
   );
 }

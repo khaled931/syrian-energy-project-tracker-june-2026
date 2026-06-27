@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { ExternalLink, Globe2, Moon, Search, Sun, X } from 'lucide-react';
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 import type { Language, Metadata, Project, ProjectUpdate, Theme } from './types/project';
 import projectsData from '../data/projects.json';
 import updatesData from '../data/project-updates.json';
@@ -71,6 +70,15 @@ const labels = {
 
 function getLabel(items: { id: string; ar: string; en: string }[], id: string, lang: Language) {
   return items.find((item) => item.id === id)?.[lang] ?? id;
+}
+
+function getMapUrl(project: Project) {
+  const delta = 0.08;
+  const minLon = project.longitude - delta;
+  const minLat = project.latitude - delta;
+  const maxLon = project.longitude + delta;
+  const maxLat = project.latitude + delta;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${minLon}%2C${minLat}%2C${maxLon}%2C${maxLat}&layer=mapnik&marker=${project.latitude}%2C${project.longitude}`;
 }
 
 function App() {
@@ -222,12 +230,11 @@ function App() {
             </div>
 
             <div className="map-wrap">
-              <MapContainer center={[selectedProject.latitude, selectedProject.longitude]} zoom={8} scrollWheelZoom={false}>
-                <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <Marker position={[selectedProject.latitude, selectedProject.longitude]}>
-                  <Popup>{language === 'ar' ? selectedProject.title_ar : selectedProject.title_en}</Popup>
-                </Marker>
-              </MapContainer>
+              <iframe
+                title={language === 'ar' ? selectedProject.title_ar : selectedProject.title_en}
+                src={getMapUrl(selectedProject)}
+                loading="lazy"
+              />
             </div>
 
             <h3>{t.timeline}</h3>

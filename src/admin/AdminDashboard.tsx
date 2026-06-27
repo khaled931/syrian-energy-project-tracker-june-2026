@@ -1,4 +1,5 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 import { ClipboardList, Download, FileText, History, MapPin, Pencil, Plus, Trash2, X, Zap } from 'lucide-react';
 import type { Language, Metadata, Project } from '../types/project';
 import './admin.css';

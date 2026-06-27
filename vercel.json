@@ -1,0 +1,5 @@
+{
+  "buildCommand": "npm run build:external",
+  "outputDirectory": "dist",
+  "framework": "vite"
+}

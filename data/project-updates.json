@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": "update-001",
+    "project_id": "project-001",
+    "update_date": "2026-06-27",
+    "title_ar": "إضافة المشروع إلى المتتبع",
+    "title_en": "Project added to the tracker",
+    "description_ar": "تمت إضافة هذا المشروع كبيان تجريبي لاختبار بنية المتتبع.",
+    "description_en": "This project was added as demo data to test the tracker structure.",
+    "status_after_update": "under-construction",
+    "source_name": "Demo source",
+    "source_url": "https://syrianrenewables.com/"
+  }
+]

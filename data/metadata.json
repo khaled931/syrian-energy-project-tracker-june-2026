@@ -1,0 +1,45 @@
+{
+  "governorates": [
+    { "id": "damascus", "ar": "دمشق", "en": "Damascus" },
+    { "id": "rif-dimashq", "ar": "ريف دمشق", "en": "Rif Dimashq" },
+    { "id": "aleppo", "ar": "حلب", "en": "Aleppo" },
+    { "id": "homs", "ar": "حمص", "en": "Homs" },
+    { "id": "hama", "ar": "حماة", "en": "Hama" },
+    { "id": "latakia", "ar": "اللاذقية", "en": "Latakia" },
+    { "id": "tartous", "ar": "طرطوس", "en": "Tartous" },
+    { "id": "idlib", "ar": "إدلب", "en": "Idlib" },
+    { "id": "daraa", "ar": "درعا", "en": "Daraa" },
+    { "id": "as-suwayda", "ar": "السويداء", "en": "As-Suwayda" },
+    { "id": "quneitra", "ar": "القنيطرة", "en": "Quneitra" },
+    { "id": "deir-ez-zor", "ar": "دير الزور", "en": "Deir ez-Zor" },
+    { "id": "raqqa", "ar": "الرقة", "en": "Raqqa" },
+    { "id": "hasakah", "ar": "الحسكة", "en": "Al-Hasakah" }
+  ],
+  "energyTypes": [
+    { "id": "solar", "ar": "طاقة شمسية", "en": "Solar" },
+    { "id": "wind", "ar": "طاقة رياح", "en": "Wind" },
+    { "id": "hydro", "ar": "طاقة كهرومائية", "en": "Hydropower" },
+    { "id": "grid", "ar": "شبكات كهرباء", "en": "Grid" },
+    { "id": "thermal", "ar": "محطات توليد تقليدية", "en": "Conventional generation" },
+    { "id": "storage", "ar": "بطاريات وتخزين", "en": "Storage" },
+    { "id": "oil-gas", "ar": "نفط وغاز", "en": "Oil and gas" },
+    { "id": "efficiency", "ar": "كفاءة طاقة", "en": "Energy efficiency" },
+    { "id": "other", "ar": "أخرى", "en": "Other" }
+  ],
+  "statuses": [
+    { "id": "planned", "ar": "مخطط", "en": "Planned" },
+    { "id": "under-construction", "ar": "قيد الإنشاء", "en": "Under construction" },
+    { "id": "operational", "ar": "قيد التشغيل", "en": "Operational" },
+    { "id": "repair", "ar": "قيد الإصلاح", "en": "Under repair" },
+    { "id": "completed", "ar": "مكتمل", "en": "Completed" },
+    { "id": "unclear", "ar": "غير واضح", "en": "Unclear" }
+  ],
+  "projectTypes": [
+    { "id": "new", "ar": "جديد", "en": "New" },
+    { "id": "maintenance", "ar": "صيانة", "en": "Maintenance" },
+    { "id": "upgrade", "ar": "تحديث", "en": "Upgrade" },
+    { "id": "expansion", "ar": "توسع", "en": "Expansion" },
+    { "id": "rehabilitation", "ar": "إعادة تأهيل", "en": "Rehabilitation" },
+    { "id": "research", "ar": "بحث وتطوير", "en": "Research and development" }
+  ]
+}

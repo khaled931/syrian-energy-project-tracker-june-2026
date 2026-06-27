@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, BarChart3, CheckCircle2, Clock3, ExternalLink, Home, Languages, MapPin, RotateCcw, Search, Share2, Zap } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock3, ExternalLink, Home, Languages, MapPin, RotateCcw, Search, Share2, Zap } from 'lucide-react';
 import AdminDashboard from './admin/AdminDashboard';
-import type { Language, Project } from './types/project';
+import type { Language, Project, ProjectUpdate } from './types/project';
 import { getAllProjects, getMetadata, getProjectUpdates, getPublishedProjects } from './services/projectService';
+import { getFirebaseProjectUpdates, getFirebaseProjects, useFirebaseData } from './services/firebaseProjectService';
 
-const allProjects = getAllProjects();
-const publicProjects = getPublishedProjects();
+const jsonAllProjects = getAllProjects();
+const jsonPublicProjects = getPublishedProjects();
 const metadata = getMetadata();
 
 const labels = {
@@ -15,7 +16,6 @@ const labels = {
     dataPortal: 'بوابة بيانات الطاقة',
     stats: 'إحصائيات المشاريع',
     admin: 'الإدارة',
-    language: 'العربية',
     search: 'البحث...',
     city: 'المدينة',
     chooseCity: 'اختر المدينة',
@@ -47,7 +47,9 @@ const labels = {
     source: 'المصدر',
     noResults: 'لا توجد مشاريع مطابقة للفلاتر الحالية.',
     home: 'الرئيسية',
-    exhibited: 'معرض'
+    exhibited: 'معرض',
+    loadingFirebase: 'جار تحميل المشاريع من Firebase...',
+    firebaseLoaded: 'تم تحميل المشاريع من Firebase'
   },
   en: {
     appTitle: 'Syrian Energy News and Projects Tracker',
@@ -55,7 +57,6 @@ const labels = {
     dataPortal: 'Energy Data Portal',
     stats: 'Project statistics',
     admin: 'Admin',
-    language: 'English',
     search: 'Search...',
     city: 'City',
     chooseCity: 'Choose city',
@@ -87,7 +88,9 @@ const labels = {
     source: 'Source',
     noResults: 'No projects match the current filters.',
     home: 'Home',
-    exhibited: 'Exhibited'
+    exhibited: 'Exhibited',
+    loadingFirebase: 'Loading projects from Firebase...',
+    firebaseLoaded: 'Projects loaded from Firebase'
   }
 };
 
@@ -104,10 +107,8 @@ function getGoogleLink(project: Project) {
 }
 
 function getStatusTone(status: string) {
-  if (status === 'planned') return 'blue';
-  if (status === 'under-construction') return 'blue';
-  if (status === 'operational') return 'green';
-  if (status === 'completed') return 'green';
+  if (status === 'planned' || status === 'under-construction') return 'blue';
+  if (status === 'operational' || status === 'completed') return 'green';
   if (status === 'repair') return 'orange';
   return 'gray';
 }
@@ -120,7 +121,15 @@ function App() {
   const [energyType, setEnergyType] = useState('all');
   const [status, setStatus] = useState('all');
   const [projectType, setProjectType] = useState('all');
+  const [allProjects, setAllProjects] = useState<Project[]>(jsonAllProjects);
+  const [publicProjects, setPublicProjects] = useState<Project[]>(jsonPublicProjects);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedUpdates, setSelectedUpdates] = useState<ProjectUpdate[]>([]);
+  const [dataMessage, setDataMessage] = useState('');
+
+  const t = labels[language];
+  const isAdmin = route === '#admin';
+  const direction = language === 'ar' ? 'rtl' : 'ltr';
 
   useEffect(() => {
     const handleHashChange = () => setRoute(window.location.hash);
@@ -128,9 +137,31 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const t = labels[language];
-  const isAdmin = route === '#admin';
-  const direction = language === 'ar' ? 'rtl' : 'ltr';
+  useEffect(() => {
+    let isMounted = true;
+    async function loadFirebaseProjects() {
+      if (!useFirebaseData) {
+        setAllProjects(jsonAllProjects);
+        setPublicProjects(jsonPublicProjects);
+        return;
+      }
+      try {
+        setDataMessage(t.loadingFirebase);
+        const firebaseProjects = await getFirebaseProjects();
+        if (!isMounted) return;
+        setAllProjects(firebaseProjects);
+        setPublicProjects(firebaseProjects.filter((project) => project.is_published));
+        setDataMessage(t.firebaseLoaded);
+      } catch (error) {
+        if (!isMounted) return;
+        setDataMessage(error instanceof Error ? error.message : 'Firebase loading failed');
+        setAllProjects(jsonAllProjects);
+        setPublicProjects(jsonPublicProjects);
+      }
+    }
+    loadFirebaseProjects();
+    return () => { isMounted = false; };
+  }, [language, t.loadingFirebase, t.firebaseLoaded]);
 
   const cities = useMemo(() => {
     const seen = new Map<string, { id: string; ar: string; en: string }>();
@@ -138,13 +169,13 @@ function App() {
       if (!seen.has(project.governorate)) {
         seen.set(project.governorate, {
           id: project.governorate,
-          ar: project.city_ar,
-          en: project.city_en
+          ar: project.city_ar || project.governorate,
+          en: project.city_en || project.governorate
         });
       }
     });
     return Array.from(seen.values());
-  }, []);
+  }, [publicProjects]);
 
   const filteredProjects = useMemo(() => {
     const lowerQuery = query.trim().toLowerCase();
@@ -168,12 +199,7 @@ function App() {
         ].join(' ').toLowerCase();
         return searchText.includes(lowerQuery);
       });
-  }, [query, governorate, energyType, status, projectType]);
-
-  const selectedUpdates = useMemo(() => {
-    if (!selectedProject) return [];
-    return getProjectUpdates(selectedProject.id);
-  }, [selectedProject]);
+  }, [publicProjects, query, governorate, energyType, status, projectType]);
 
   const stats = useMemo(() => {
     return {
@@ -182,7 +208,7 @@ function App() {
       inProgress: publicProjects.filter((project) => project.status === 'under-construction').length,
       stopped: publicProjects.filter((project) => project.status === 'unclear' || project.status === 'repair').length
     };
-  }, []);
+  }, [publicProjects]);
 
   const resetFilters = () => {
     setQuery('');
@@ -192,13 +218,23 @@ function App() {
     setProjectType('all');
   };
 
-  const openProject = (project: Project) => {
+  const openProject = async (project: Project) => {
     setSelectedProject(project);
+    setSelectedUpdates(useFirebaseData ? [] : getProjectUpdates(project.id));
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (useFirebaseData) {
+      try {
+        const updates = await getFirebaseProjectUpdates(project.id);
+        setSelectedUpdates(updates);
+      } catch {
+        setSelectedUpdates([]);
+      }
+    }
   };
 
   const closeProject = () => {
     setSelectedProject(null);
+    setSelectedUpdates([]);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -244,7 +280,7 @@ function App() {
           </div>
 
           <section className="detail-content-card">
-            <div className="detail-location"><MapPin size={18} /> {t.location}<strong>{language === 'ar' ? `${selectedProject.city_ar} – سوريا` : `${selectedProject.city_en}, Syria`}</strong></div>
+            <div className="detail-location"><MapPin size={18} /> {t.location}<strong>{language === 'ar' ? `${selectedProject.city_ar || selectedProject.governorate} – سوريا` : `${selectedProject.city_en || selectedProject.governorate}, Syria`}</strong></div>
             <span className="detail-label">{t.projectTitle}</span>
             <h2>{language === 'ar' ? selectedProject.title_ar : selectedProject.title_en}</h2>
 
@@ -294,6 +330,8 @@ function App() {
             <button className="tab">{t.dataPortal}</button>
             <button className="tab outline">{t.stats}</button>
           </nav>
+
+          {dataMessage && <p className="empty-card">{dataMessage}</p>}
 
           <div className="search-strip">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} />

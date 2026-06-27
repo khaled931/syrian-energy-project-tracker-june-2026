@@ -1,6 +1,8 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, setDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import type { Metadata, Project, ProjectUpdate } from '../types/project';
 import { firebaseDb, isFirebaseConfigured } from '../firebase/firebaseClient';
+
+export const useFirebaseData = import.meta.env.VITE_DATA_SOURCE === 'firebase';
 
 function requireDb() {
   if (!isFirebaseConfigured || !firebaseDb) {
@@ -9,16 +11,23 @@ function requireDb() {
   return firebaseDb;
 }
 
+function sortProjects(projects: Project[]): Project[] {
+  return [...projects].sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
+}
+
+function sortUpdates(updates: ProjectUpdate[]): ProjectUpdate[] {
+  return [...updates].sort((a, b) => String(b.update_date).localeCompare(String(a.update_date)));
+}
+
 export async function getFirebaseProjects(): Promise<Project[]> {
   const db = requireDb();
-  const snapshot = await getDocs(query(collection(db, 'projects'), orderBy('updated_at', 'desc')));
-  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as Project[];
+  const snapshot = await getDocs(collection(db, 'projects'));
+  return sortProjects(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as Project[]);
 }
 
 export async function getFirebasePublishedProjects(): Promise<Project[]> {
-  const db = requireDb();
-  const snapshot = await getDocs(query(collection(db, 'projects'), where('is_published', '==', true), orderBy('updated_at', 'desc')));
-  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as Project[];
+  const projects = await getFirebaseProjects();
+  return projects.filter((project) => project.is_published);
 }
 
 export async function saveFirebaseProject(project: Project): Promise<void> {
@@ -40,8 +49,8 @@ export async function deleteFirebaseProject(projectId: string): Promise<void> {
 
 export async function getFirebaseProjectUpdates(projectId: string): Promise<ProjectUpdate[]> {
   const db = requireDb();
-  const snapshot = await getDocs(query(collection(db, 'project_updates'), where('project_id', '==', projectId), orderBy('update_date', 'desc')));
-  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as ProjectUpdate[];
+  const snapshot = await getDocs(query(collection(db, 'project_updates'), where('project_id', '==', projectId)));
+  return sortUpdates(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as ProjectUpdate[]);
 }
 
 export async function saveFirebaseProjectUpdate(update: ProjectUpdate): Promise<string> {

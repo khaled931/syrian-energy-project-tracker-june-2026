@@ -15,6 +15,7 @@ export default function AccessGate({ children, language }: AccessGateProps) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const isAr = language === 'ar';
+  const allowedUsers = readAllowedUsers();
 
   useEffect(() => {
     if (!isFirebaseConfigured || !firebaseAuth) {
@@ -24,12 +25,15 @@ export default function AccessGate({ children, language }: AccessGateProps) {
     }
 
     getRedirectResult(firebaseAuth)
-      .then(async (result) => {
+      .then((result) => {
         if (!result?.user) return;
+        setUser(result.user);
         if (!canManage(result.user.email)) {
-          await signOut(firebaseAuth);
-          setUser(null);
-          setMessage(isAr ? 'هذا الحساب غير مصرح له بإدارة المنصة.' : 'This account is not allowed to manage the platform.');
+          setMessage(
+            isAr
+              ? `تم تسجيل الدخول بهذا الحساب، لكنه غير موجود في قائمة الإدارة: ${result.user.email}`
+              : `Signed in with this account, but it is not in the admin allowlist: ${result.user.email}`
+          );
         }
       })
       .catch((error) => setMessage(error instanceof Error ? error.message : 'Login failed'));
@@ -44,6 +48,7 @@ export default function AccessGate({ children, language }: AccessGateProps) {
     if (!firebaseAuth) return;
     try {
       setMessage('');
+      sessionStorage.setItem('returnToAdmin', 'true');
       await signInWithRedirect(firebaseAuth, new GoogleAuthProvider());
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Login failed');
@@ -60,14 +65,18 @@ export default function AccessGate({ children, language }: AccessGateProps) {
     return <section className="empty-card">{isAr ? 'جار التحقق من الصلاحية...' : 'Checking access...'}</section>;
   }
 
-  if (!user || !canManage(user.email)) {
+  const isAllowed = canManage(user?.email);
+
+  if (!user || !isAllowed) {
     return (
       <section className="access-card">
         <h2>{isAr ? 'تسجيل دخول الإدارة' : 'Management login'}</h2>
         <p>{isAr ? 'يجب تسجيل الدخول بحساب مصرح له قبل فتح لوحة الإدارة.' : 'Sign in with an allowed account before opening the management dashboard.'}</p>
         <button className="admin-primary" onClick={signIn}>{isAr ? 'تسجيل الدخول عبر Google' : 'Sign in with Google'}</button>
+        {user?.email && <p className="admin-form-note">{isAr ? 'الحساب المسجل حالياً:' : 'Current signed-in account:'} {user.email}</p>}
         {message && <p className="admin-form-note">{message}</p>}
-        <small>{isAr ? 'الحسابات المسموحة حالياً:' : 'Allowed accounts:'} {readAllowedUsers().join(', ') || '-'}</small>
+        <small>{isAr ? 'الحسابات المسموحة حالياً:' : 'Allowed accounts:'} {allowedUsers.join(', ') || '-'}</small>
+        {user && <button className="admin-secondary" onClick={logout}>{isAr ? 'تسجيل الخروج والمحاولة بحساب آخر' : 'Sign out and try another account'}</button>}
       </section>
     );
   }

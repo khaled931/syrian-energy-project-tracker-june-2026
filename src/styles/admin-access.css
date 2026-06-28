@@ -1,0 +1,19 @@
+.admin-mini {
+  display: none !important;
+}
+
+@media (max-width: 720px) {
+  .modern-topbar {
+    grid-template-columns: 1fr !important;
+    grid-template-areas: 'title' !important;
+    padding-left: 92px !important;
+    padding-right: 10px !important;
+  }
+
+  .modern-topbar h1 {
+    grid-area: title !important;
+    justify-self: end !important;
+    max-width: 62vw !important;
+    text-align: right !important;
+  }
+}

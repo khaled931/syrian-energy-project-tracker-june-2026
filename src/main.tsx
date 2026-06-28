@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './styles/globals.css';
 import './styles/map.css';
 import './styles/admin-access.css';
+import './styles/final-mobile-polish.css';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import MobileDensityToggle from './components/MobileDensityToggle';

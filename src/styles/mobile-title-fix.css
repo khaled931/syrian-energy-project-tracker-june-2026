@@ -2,29 +2,33 @@
   .modern-topbar {
     position: sticky !important;
     top: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    min-height: 72px !important;
-    padding: 10px 14px 10px 116px !important;
+    display: block !important;
+    min-height: 82px !important;
+    padding: 0 !important;
     text-align: right !important;
+    direction: ltr !important;
+    overflow: visible !important;
   }
 
   .modern-topbar h1 {
-    flex: 0 1 auto !important;
+    position: absolute !important;
+    top: 50% !important;
+    right: 14px !important;
+    left: 126px !important;
+    transform: translateY(-50%) !important;
     width: auto !important;
-    max-width: calc(100vw - 142px) !important;
+    max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
     text-align: right !important;
-    justify-self: auto !important;
-    align-self: center !important;
+    direction: rtl !important;
     font-size: 1rem !important;
     line-height: 1.35 !important;
     color: #217A8D !important;
     display: block !important;
     white-space: normal !important;
-    overflow: visible !important;
+    overflow: hidden !important;
+    z-index: 2 !important;
   }
 
   .modern-topbar .language-control,
@@ -36,12 +40,14 @@
     position: fixed !important;
     top: 20px !important;
     left: 16px !important;
+    right: auto !important;
     z-index: 10020 !important;
     display: inline-flex !important;
     align-items: center !important;
     gap: 8px !important;
-    width: auto !important;
-    height: auto !important;
+    width: 96px !important;
+    height: 44px !important;
+    pointer-events: auto !important;
   }
 
   .mobile-header-tools button {
@@ -61,17 +67,20 @@
 
 @media (max-width: 390px) {
   .modern-topbar {
-    padding-left: 106px !important;
+    min-height: 78px !important;
   }
 
   .modern-topbar h1 {
-    max-width: calc(100vw - 132px) !important;
+    right: 12px !important;
+    left: 112px !important;
     font-size: 0.92rem !important;
   }
 
   .mobile-header-tools {
     left: 12px !important;
+    top: 20px !important;
     gap: 6px !important;
+    width: 88px !important;
   }
 
   .mobile-header-tools button {

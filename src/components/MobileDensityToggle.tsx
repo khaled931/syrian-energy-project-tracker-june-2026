@@ -32,47 +32,49 @@ function cleanText(value?: string) {
   return String(value || '').trim().replace(/\s+/g, ' ');
 }
 
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char] || char));
+}
+
 function findProjectForCard(card: HTMLElement, projects: Project[]) {
   const title = cleanText(card.querySelector('h3')?.textContent || '');
   if (!title) return undefined;
   return projects.find((project) => cleanText(project.title_ar) === title || cleanText(project.title_en) === title);
 }
 
-function upsertMeta(card: HTMLElement, project?: Project) {
-  let meta = card.querySelector<HTMLDivElement>('.sr-card-main-meta');
-  if (!meta) {
-    meta = document.createElement('div');
-    meta.className = 'sr-card-main-meta';
-    const h3 = card.querySelector('h3');
-    h3?.insertAdjacentElement('afterend', meta);
-  }
-
+function buildMetaHtml(card: HTMLElement, project?: Project) {
   const energyText = cleanText(card.querySelector('.card-pills span')?.textContent || '');
   const cityText = project ? cleanText(project.city_ar || project.city_en || project.governorate) : '';
   const capacityText = project ? cleanText(project.capacity) : '';
+  const parts: string[] = [];
 
-  meta.textContent = '';
+  if (energyText) parts.push(`<span class="sr-card-energy-name">${escapeHtml(energyText)}</span>`);
+  if (cityText) parts.push(`<span class="sr-card-city">${escapeHtml(cityText)}</span>`);
+  if (capacityText) parts.push(`<span class="sr-card-capacity-inline">${escapeHtml(capacityText)}</span>`);
 
-  if (energyText) {
-    const energy = document.createElement('span');
-    energy.className = 'sr-card-energy-name';
-    energy.textContent = energyText;
-    meta.appendChild(energy);
-  }
+  return parts.join('');
+}
 
-  if (cityText) {
-    const city = document.createElement('span');
-    city.className = 'sr-card-city';
-    city.textContent = cityText;
-    meta.appendChild(city);
-  }
+function decorateVisibleCards(projects: Project[]) {
+  document.querySelectorAll<HTMLElement>('.modern-project-card').forEach((card) => {
+    const project = findProjectForCard(card, projects);
+    const firstPill = card.querySelector('.card-pills span');
+    const energyText = firstPill?.textContent ?? card.textContent ?? '';
+    const symbol = getEnergySymbol(energyText);
+    if (card.dataset.energySymbol !== symbol) card.dataset.energySymbol = symbol;
 
-  if (capacityText) {
-    const capacity = document.createElement('span');
-    capacity.className = 'sr-card-capacity-inline';
-    capacity.textContent = capacityText;
-    meta.appendChild(capacity);
-  }
+    const html = buildMetaHtml(card, project);
+    let meta = card.querySelector<HTMLDivElement>('.sr-card-main-meta');
+    if (!meta) {
+      meta = document.createElement('div');
+      meta.className = 'sr-card-main-meta';
+      card.querySelector('h3')?.insertAdjacentElement('afterend', meta);
+    }
+    if (meta.dataset.rendered !== html) {
+      meta.innerHTML = html;
+      meta.dataset.rendered = html;
+    }
+  });
 }
 
 export default function MobileDensityToggle() {
@@ -130,19 +132,25 @@ export default function MobileDensityToggle() {
   }, []);
 
   useEffect(() => {
-    const decorateCards = () => {
-      document.querySelectorAll<HTMLElement>('.modern-project-card').forEach((card) => {
-        const project = findProjectForCard(card, projects);
-        const firstPill = card.querySelector('.card-pills span');
-        const energyText = firstPill?.textContent ?? card.textContent ?? '';
-        card.dataset.energySymbol = getEnergySymbol(energyText);
-        upsertMeta(card, project);
-      });
+    let cancelled = false;
+    let runId = 0;
+
+    const run = () => {
+      const current = ++runId;
+      window.setTimeout(() => {
+        if (!cancelled && current === runId) decorateVisibleCards(projects);
+      }, 80);
     };
-    decorateCards();
-    const observer = new MutationObserver(decorateCards);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+
+    run();
+    const root = document.querySelector('.tracker-page');
+    const observer = root ? new MutationObserver(run) : null;
+    observer?.observe(root as Node, { childList: true, subtree: true });
+
+    return () => {
+      cancelled = true;
+      observer?.disconnect();
+    };
   }, [projects]);
 
   const toggleLanguage = () => {
@@ -151,6 +159,7 @@ export default function MobileDensityToggle() {
     const next = select.value === 'ar' ? 'en' : 'ar';
     triggerSelectChange(select, next);
     setLangLabel(next === 'ar' ? 'EN' : 'عرب');
+    window.setTimeout(() => decorateVisibleCards(projects), 120);
   };
 
   return (

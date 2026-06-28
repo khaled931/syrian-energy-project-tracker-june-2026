@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithRedirect, signOut } from 'firebase/auth';
+import { GoogleAuthProvider, browserLocalPersistence, getRedirectResult, onAuthStateChanged, setPersistence, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { firebaseAuth, isFirebaseConfigured } from '../firebase/firebaseClient';
 import { canManage, readAllowedUsers } from '../utils/permissions';
@@ -24,7 +24,8 @@ export default function AccessGate({ children, language }: AccessGateProps) {
       return;
     }
 
-    getRedirectResult(firebaseAuth)
+    setPersistence(firebaseAuth, browserLocalPersistence)
+      .then(() => getRedirectResult(firebaseAuth))
       .then((result) => {
         if (!result?.user) return;
         setUser(result.user);
@@ -46,11 +47,27 @@ export default function AccessGate({ children, language }: AccessGateProps) {
 
   const signIn = async () => {
     if (!firebaseAuth) return;
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     try {
       setMessage('');
-      sessionStorage.setItem('returnToAdmin', 'true');
-      await signInWithRedirect(firebaseAuth, new GoogleAuthProvider());
+      await setPersistence(firebaseAuth, browserLocalPersistence);
+      const result = await signInWithPopup(firebaseAuth, provider);
+      setUser(result.user);
+      if (!canManage(result.user.email)) {
+        setMessage(isAr ? `هذا الحساب غير موجود في قائمة الإدارة: ${result.user.email}` : `This account is not in the admin allowlist: ${result.user.email}`);
+      }
     } catch (error) {
+      const code = error && typeof error === 'object' && 'code' in error ? String((error as { code?: string }).code) : '';
+      if (code.includes('popup-blocked') || code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request')) {
+        try {
+          await signInWithRedirect(firebaseAuth, provider);
+          return;
+        } catch (redirectError) {
+          setMessage(redirectError instanceof Error ? redirectError.message : 'Redirect login failed');
+          return;
+        }
+      }
       setMessage(error instanceof Error ? error.message : 'Login failed');
     }
   };

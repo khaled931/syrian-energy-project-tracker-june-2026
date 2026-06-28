@@ -15,7 +15,7 @@ function triggerSelectChange(select: HTMLSelectElement, value: string) {
 function getEnergySymbol(text: string) {
   const value = text.toLowerCase();
   if (value.includes('شمس') || value.includes('solar')) return '☀';
-  if (value.includes('رياح') || value.includes('wind')) return '♨';
+  if (value.includes('رياح') || value.includes('wind')) return '⌁';
   if (value.includes('مياه') || value.includes('مائية') || value.includes('hydro') || value.includes('water')) return '≈';
   if (value.includes('كهرب') || value.includes('grid') || value.includes('electric')) return '⚡';
   if (value.includes('نفط') || value.includes('oil')) return '◔';

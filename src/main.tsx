@@ -4,6 +4,7 @@ import './styles/globals.css';
 import './styles/map.css';
 import './styles/admin-access.css';
 import './styles/final-mobile-polish.css';
+import './styles/mobile-title-fix.css';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import MobileDensityToggle from './components/MobileDensityToggle';

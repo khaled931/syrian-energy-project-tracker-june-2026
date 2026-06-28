@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, BarChart3, CheckCircle2, Clock3, ExternalLink, Home, Languages, MapPin, RotateCcw, Search, Share2, Zap } from 'lucide-react';
 import AdminDashboard from './admin/AdminDashboard';
 import AccessGate from './components/AccessGate';
+import ProjectsOpenStreetMap from './components/ProjectsOpenStreetMap';
 import type { Language, Project, ProjectUpdate } from './types/project';
 import { getAllProjects, getMetadata, getProjectUpdates, getPublishedProjects } from './services/projectService';
 import { getFirebaseProjectUpdates, getFirebaseProjects, useFirebaseData } from './services/firebaseProjectService';
@@ -16,10 +17,10 @@ type ChartItem = { id: string; label: string; count: number; capacity: number };
 
 const copy = {
   ar: {
-    appTitle: 'متتبع أخبار ومشاريع الطاقة السورية', projects: 'المشاريع', stats: 'إحصائيات المشاريع', mapTab: 'خريطة المشاريع', admin: 'الإدارة', search: 'البحث...', city: 'المدينة', chooseCity: 'اختر المدينة', energyType: 'نوع الطاقة', projectType: 'نوع المشروع', status: 'حالة المشروع', all: 'الكل / All', reset: 'إعادة تعيين', total: 'إجمالي المشاريع', active: 'نشطة حالياً', inProgress: 'قيد التشغيل', stopped: 'متوقفة', results: 'عدد النتائج', owner: 'المالك/المطور/الشركاء', capacity: 'الاستطاعة', location: 'الموقع', projectTitle: 'عنوان المشروع', description: 'الوصف', implementation: 'مراحل التنفيذ', planned: 'مخطط', construction: 'قيد الإنشاء', operating: 'قيد التشغيل', completed: 'مكتملة', current: 'حالية', share: 'مشاركة', back: 'رجوع', follow: 'تابع أين وصل المشروع', openGoogle: 'فتح في خرائط Google', source: 'المصدر', noResults: 'لا توجد مشاريع مطابقة للفلاتر الحالية.', home: 'الرئيسية', view: 'عرض', loading: 'جار تحميل البيانات...', updatesTitle: 'تحديثات المشروع', noUpdates: 'لا توجد تحديثات زمنية منشورة لهذا المشروع بعد.', analyticsTitle: 'لوحة إحصائيات مشاريع الطاقة', analyticsLead: 'تحليل سريع للمشاريع المنشورة حسب نوع الطاقة، نوع المشروع، المدينة، والاستطاعة.', byEnergy: 'حسب نوع الطاقة', byType: 'حسب نوع المشروع', byCity: 'حسب المدينة', byCapacity: 'حسب نطاق الاستطاعة', totalCapacity: 'إجمالي الاستطاعة الرقمية', avgCapacity: 'متوسط الاستطاعة', projectsCount: 'عدد المشاريع', mapTitle: 'خريطة مشاريع الطاقة في سوريا', mapLead: 'استعراض مكاني مباشر للمشاريع المنشورة على خريطة سوريا. اضغط على أي نقطة لفتح تفاصيل المشروع.', mapHint: 'اضغط على نقطة المشروع أو اسمه لفتح البطاقة التفصيلية', mapLegend: 'المشاريع على الخريطة', noCoordinates: 'بعض المشاريع قد لا تظهر إذا كانت الإحداثيات غير مكتملة.'
+    appTitle: 'متتبع أخبار ومشاريع الطاقة السورية', projects: 'المشاريع', stats: 'إحصائيات المشاريع', mapTab: 'خريطة المشاريع', admin: 'الإدارة', search: 'البحث...', city: 'المدينة', chooseCity: 'اختر المدينة', energyType: 'نوع الطاقة', projectType: 'نوع المشروع', status: 'حالة المشروع', all: 'الكل / All', reset: 'إعادة تعيين', total: 'إجمالي المشاريع', active: 'نشطة حالياً', inProgress: 'قيد التشغيل', stopped: 'متوقفة', results: 'عدد النتائج', owner: 'المالك/المطور/الشركاء', capacity: 'الاستطاعة', location: 'الموقع', projectTitle: 'عنوان المشروع', description: 'الوصف', implementation: 'مراحل التنفيذ', planned: 'مخطط', construction: 'قيد الإنشاء', operating: 'قيد التشغيل', completed: 'مكتملة', current: 'حالية', share: 'مشاركة', back: 'رجوع', follow: 'تابع أين وصل المشروع', openGoogle: 'فتح في خرائط Google', source: 'المصدر', noResults: 'لا توجد مشاريع مطابقة للفلاتر الحالية.', home: 'الرئيسية', view: 'عرض', loading: 'جار تحميل البيانات...', updatesTitle: 'تحديثات المشروع', noUpdates: 'لا توجد تحديثات زمنية منشورة لهذا المشروع بعد.', analyticsTitle: 'لوحة إحصائيات مشاريع الطاقة', analyticsLead: 'تحليل سريع للمشاريع المنشورة حسب نوع الطاقة، نوع المشروع، المدينة، والاستطاعة.', byEnergy: 'حسب نوع الطاقة', byType: 'حسب نوع المشروع', byCity: 'حسب المدينة', byCapacity: 'حسب نطاق الاستطاعة', totalCapacity: 'إجمالي الاستطاعة الرقمية', avgCapacity: 'متوسط الاستطاعة', projectsCount: 'عدد المشاريع'
   },
   en: {
-    appTitle: 'Syrian Energy News and Projects Tracker', projects: 'Projects', stats: 'Project statistics', mapTab: 'Projects map', admin: 'Admin', search: 'Search...', city: 'City', chooseCity: 'Choose city', energyType: 'Energy type', projectType: 'Project type', status: 'Project status', all: 'All', reset: 'Reset', total: 'Total projects', active: 'Active now', inProgress: 'In progress', stopped: 'Stopped', results: 'Results', owner: 'Owner/developer/partners', capacity: 'Capacity', location: 'Location', projectTitle: 'Project title', description: 'Description', implementation: 'Implementation stages', planned: 'Planned', construction: 'Under construction', operating: 'Operational', completed: 'Completed', current: 'Current', share: 'Share', back: 'Back', follow: 'Follow project progress', openGoogle: 'Open in Google Maps', source: 'Source', noResults: 'No projects match the current filters.', home: 'Home', view: 'View', loading: 'Loading data...', updatesTitle: 'Project updates', noUpdates: 'No timeline updates have been published for this project yet.', analyticsTitle: 'Energy projects analytics dashboard', analyticsLead: 'A quick view of published projects by energy type, project type, city, and capacity.', byEnergy: 'By energy type', byType: 'By project type', byCity: 'By city', byCapacity: 'By capacity range', totalCapacity: 'Total numeric capacity', avgCapacity: 'Average capacity', projectsCount: 'Projects count', mapTitle: 'Energy projects map of Syria', mapLead: 'A direct geographic view of published projects across Syria. Click any point to open the project details.', mapHint: 'Click a project point or name to open the detailed card', mapLegend: 'Projects on the map', noCoordinates: 'Some projects may not appear if coordinates are incomplete.'
+    appTitle: 'Syrian Energy News and Projects Tracker', projects: 'Projects', stats: 'Project statistics', mapTab: 'Projects map', admin: 'Admin', search: 'Search...', city: 'City', chooseCity: 'Choose city', energyType: 'Energy type', projectType: 'Project type', status: 'Project status', all: 'All', reset: 'Reset', total: 'Total projects', active: 'Active now', inProgress: 'In progress', stopped: 'Stopped', results: 'Results', owner: 'Owner/developer/partners', capacity: 'Capacity', location: 'Location', projectTitle: 'Project title', description: 'Description', implementation: 'Implementation stages', planned: 'Planned', construction: 'Under construction', operating: 'Operational', completed: 'Completed', current: 'Current', share: 'Share', back: 'Back', follow: 'Follow project progress', openGoogle: 'Open in Google Maps', source: 'Source', noResults: 'No projects match the current filters.', home: 'Home', view: 'View', loading: 'Loading data...', updatesTitle: 'Project updates', noUpdates: 'No timeline updates have been published for this project yet.', analyticsTitle: 'Energy projects analytics dashboard', analyticsLead: 'A quick view of published projects by energy type, project type, city, and capacity.', byEnergy: 'By energy type', byType: 'By project type', byCity: 'By city', byCapacity: 'By capacity range', totalCapacity: 'Total numeric capacity', avgCapacity: 'Average capacity', projectsCount: 'Projects count'
   }
 };
 
@@ -70,19 +71,6 @@ function capacityBucket(project: Project, language: Language) {
   return { id: 'large', label: language === 'ar' ? '1 MW فأكثر' : '1 MW and above' };
 }
 
-function projectPoint(project: Project) {
-  const minLon = 35.55;
-  const maxLon = 42.45;
-  const minLat = 32.0;
-  const maxLat = 37.45;
-  const lon = Number(project.longitude);
-  const lat = Number(project.latitude);
-  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
-  const x = ((lon - minLon) / (maxLon - minLon)) * 100;
-  const y = ((maxLat - lat) / (maxLat - minLat)) * 100;
-  return { x: Math.min(95, Math.max(5, x)), y: Math.min(92, Math.max(8, y)) };
-}
-
 function AnalyticsPanel({ projects, language }: { projects: Project[]; language: Language }) {
   const t = copy[language];
   const byEnergy = groupProjects(projects, (p) => ({ id: p.energy_type, label: getLabel(metadata.energyTypes, p.energy_type, language) }));
@@ -103,52 +91,6 @@ function AnalyticsPanel({ projects, language }: { projects: Project[]; language:
       <div className="analytics-hero"><div><span className="eyebrow"><BarChart3 size={16} /> {t.stats}</span><h2>{t.analyticsTitle}</h2><p>{t.analyticsLead}</p></div></div>
       <div className="analytics-kpis"><article><span>{t.projectsCount}</span><strong>{projects.length}</strong></article><article><span>{t.totalCapacity}</span><strong>{Math.round(totalCapacity).toLocaleString()} kW</strong></article><article><span>{t.avgCapacity}</span><strong>{avgCapacity.toLocaleString()} kW</strong></article></div>
       <div className="analytics-grid"><article className="analytics-card"><h3>{t.byEnergy}</h3>{renderBars(byEnergy)}</article><article className="analytics-card"><h3>{t.byType}</h3>{renderBars(byType)}</article><article className="analytics-card"><h3>{t.byCity}</h3>{renderBars(byCity)}</article><article className="analytics-card"><h3>{t.byCapacity}</h3>{renderBars(byCapacity)}</article></div>
-    </section>
-  );
-}
-
-function ProjectsMapPanel({ projects, language, onSelect }: { projects: Project[]; language: Language; onSelect: (project: Project) => void }) {
-  const t = copy[language];
-  const mappedProjects = projects.map((project) => ({ project, point: projectPoint(project) })).filter((item): item is { project: Project; point: { x: number; y: number } } => item.point !== null);
-
-  return (
-    <section className="projects-map-dashboard">
-      <div className="map-hero-card"><span className="eyebrow"><MapPin size={16} /> {t.mapTab}</span><h2>{t.mapTitle}</h2><p>{t.mapLead}</p></div>
-      <div className="syria-map-layout">
-        <div className="syria-map-card">
-          <div className="syria-map-canvas" aria-label={t.mapTitle}>
-            <svg viewBox="0 0 100 70" className="syria-outline" role="img" aria-label="Syria map outline">
-              <path d="M18 12 L44 10 L53 15 L67 13 L80 20 L84 32 L75 39 L76 52 L62 58 L50 55 L39 61 L28 55 L21 45 L12 42 L16 30 L10 22 Z" />
-              <path className="syria-inner-line" d="M22 21 L40 24 L56 20 L70 27 M26 43 L43 40 L59 47 L72 42 M45 13 L43 58" />
-            </svg>
-            {mappedProjects.map(({ project, point }, index) => (
-              <button
-                className={`map-project-marker marker-${statusTone(project.status)}`}
-                key={project.id}
-                style={{ insetInlineStart: `${point.x}%`, top: `${point.y}%` }}
-                title={language === 'ar' ? project.title_ar : project.title_en}
-                onClick={() => onSelect(project)}
-              >
-                <span>{index + 1}</span>
-              </button>
-            ))}
-          </div>
-          <p className="map-hint">{t.mapHint}</p>
-        </div>
-        <aside className="map-project-list">
-          <h3>{t.mapLegend} ({mappedProjects.length})</h3>
-          <div>
-            {mappedProjects.map(({ project }, index) => (
-              <button key={project.id} className="map-list-item" onClick={() => onSelect(project)}>
-                <span>{index + 1}</span>
-                <strong>{language === 'ar' ? project.title_ar : project.title_en}</strong>
-                <small>{language === 'ar' ? project.city_ar : project.city_en} · {project.capacity}</small>
-              </button>
-            ))}
-          </div>
-          <p className="map-note">{t.noCoordinates}</p>
-        </aside>
-      </div>
     </section>
   );
 }
@@ -271,7 +213,7 @@ export default function App() {
         <section className="tracker-page">
           <nav className="tab-row modern-tabs"><button className={`tab ${view === 'projects' ? 'active' : ''}`} onClick={() => setView('projects')}>{t.projects}</button><button className={`tab outline ${view === 'analytics' ? 'active' : ''}`} onClick={() => setView('analytics')}>{t.stats}</button><button className={`tab outline ${view === 'map' ? 'active' : ''}`} onClick={() => setView('map')}>{t.mapTab}</button></nav>
           {dataMessage && <p className="empty-card subtle-loading">{dataMessage}</p>}
-          {view === 'analytics' ? <AnalyticsPanel projects={publicProjects} language={language} /> : view === 'map' ? <ProjectsMapPanel projects={publicProjects} language={language} onSelect={openProject} /> : <><div className="search-strip"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} /><Search size={18} /></div><section className="filter-panel"><div className="filter-field"><label>{t.city}</label><select value={governorate} onChange={(event) => setGovernorate(event.target.value)}><option value="all">{t.chooseCity}</option>{cities.map((city) => <option key={city.id} value={city.id}>{city[language]}</option>)}</select></div><div className="filter-field"><label>{t.energyType}</label><select value={energyType} onChange={(event) => setEnergyType(event.target.value)}><option value="all">{t.all}</option>{metadata.energyTypes.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></div><div className="filter-field"><label>{t.projectType}</label><select value={projectType} onChange={(event) => setProjectType(event.target.value)}><option value="all">{t.all}</option>{metadata.projectTypes.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></div><div className="filter-field"><label>{t.status}</label><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">{t.all}</option>{metadata.statuses.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></div><button className="reset-button" onClick={resetFilters}><RotateCcw size={15} /> {t.reset}</button></section><section className="stats-row"><article><strong>{stats.total}</strong><span>{t.total}</span></article><article><strong className="blue-number">{stats.active}</strong><span>{t.active}</span></article><article><strong className="green-number">{stats.inProgress}</strong><span>{t.inProgress}</span></article><article><strong className="red-number">{stats.stopped}</strong><span>{t.stopped}</span></article></section><div className="results-meta">{t.results}: {filteredProjects.length}</div><section className="reference-grid">{filteredProjects.map((project) => <article className="reference-card modern-project-card" key={project.id} onClick={() => openProject(project)}><h3>{language === 'ar' ? project.title_ar : project.title_en}</h3><div className="card-pills"><span>{getLabel(metadata.energyTypes, project.energy_type, language)}</span><span>{getLabel(metadata.projectTypes, project.project_type, language)}</span><span className="gray-pill">{getLabel(metadata.statuses, project.status, language)}</span></div><div className="project-info-stack"><span className="status-red">{t.view}</span><button onClick={(event) => { event.stopPropagation(); copyProjectLink(project); }}><Share2 size={14} /> {t.share}</button><p>{t.owner}<br />{project.owner}<br />{project.developer}<br />{project.partners}</p></div><button className="follow-row follow-button" onClick={(event) => { event.stopPropagation(); openProject(project); }}><Clock3 size={15} /> {t.follow}</button><div className="card-bottom"><span>‹</span><strong>{project.capacity} <Zap size={15} /></strong></div></article>)}</section>{filteredProjects.length === 0 && <p className="empty-card">{t.noResults}</p>}</>}
+          {view === 'analytics' ? <AnalyticsPanel projects={publicProjects} language={language} /> : view === 'map' ? <ProjectsOpenStreetMap projects={publicProjects} language={language} onSelect={openProject} /> : <><div className="search-strip"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} /><Search size={18} /></div><section className="filter-panel"><div className="filter-field"><label>{t.city}</label><select value={governorate} onChange={(event) => setGovernorate(event.target.value)}><option value="all">{t.chooseCity}</option>{cities.map((city) => <option key={city.id} value={city.id}>{city[language]}</option>)}</select></div><div className="filter-field"><label>{t.energyType}</label><select value={energyType} onChange={(event) => setEnergyType(event.target.value)}><option value="all">{t.all}</option>{metadata.energyTypes.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></div><div className="filter-field"><label>{t.projectType}</label><select value={projectType} onChange={(event) => setProjectType(event.target.value)}><option value="all">{t.all}</option>{metadata.projectTypes.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></div><div className="filter-field"><label>{t.status}</label><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">{t.all}</option>{metadata.statuses.map((item) => <option key={item.id} value={item.id}>{item[language]}</option>)}</select></div><button className="reset-button" onClick={resetFilters}><RotateCcw size={15} /> {t.reset}</button></section><section className="stats-row"><article><strong>{stats.total}</strong><span>{t.total}</span></article><article><strong className="blue-number">{stats.active}</strong><span>{t.active}</span></article><article><strong className="green-number">{stats.inProgress}</strong><span>{t.inProgress}</span></article><article><strong className="red-number">{stats.stopped}</strong><span>{t.stopped}</span></article></section><div className="results-meta">{t.results}: {filteredProjects.length}</div><section className="reference-grid">{filteredProjects.map((project) => <article className="reference-card modern-project-card" key={project.id} onClick={() => openProject(project)}><h3>{language === 'ar' ? project.title_ar : project.title_en}</h3><div className="card-pills"><span>{getLabel(metadata.energyTypes, project.energy_type, language)}</span><span>{getLabel(metadata.projectTypes, project.project_type, language)}</span><span className="gray-pill">{getLabel(metadata.statuses, project.status, language)}</span></div><div className="project-info-stack"><span className="status-red">{t.view}</span><button onClick={(event) => { event.stopPropagation(); copyProjectLink(project); }}><Share2 size={14} /> {t.share}</button><p>{t.owner}<br />{project.owner}<br />{project.developer}<br />{project.partners}</p></div><button className="follow-row follow-button" onClick={(event) => { event.stopPropagation(); openProject(project); }}><Clock3 size={15} /> {t.follow}</button><div className="card-bottom"><span>‹</span><strong>{project.capacity} <Zap size={15} /></strong></div></article>)}</section>{filteredProjects.length === 0 && <p className="empty-card">{t.noResults}</p>}</>}
         </section>
       )}
     </main>

@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
+import type { Project } from '../types/project';
+import { getPublishedProjects } from '../services/projectService';
+import { getFirebaseProjects, useFirebaseData } from '../services/firebaseProjectService';
 import '../styles/mobile-density.css';
 import '../styles/mobile-header-filter.css';
 import '../styles/card-energy-symbols.css';
+import '../styles/simple-project-card.css';
 
 const STORAGE_KEY = 'sr-mobile-density';
 const THEME_KEY = 'sr-theme-mode';
@@ -24,11 +28,59 @@ function getEnergySymbol(text: string) {
   return '◆';
 }
 
+function cleanText(value?: string) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function findProjectForCard(card: HTMLElement, projects: Project[]) {
+  const title = cleanText(card.querySelector('h3')?.textContent || '');
+  if (!title) return undefined;
+  return projects.find((project) => cleanText(project.title_ar) === title || cleanText(project.title_en) === title);
+}
+
+function upsertMeta(card: HTMLElement, project?: Project) {
+  let meta = card.querySelector<HTMLDivElement>('.sr-card-main-meta');
+  if (!meta) {
+    meta = document.createElement('div');
+    meta.className = 'sr-card-main-meta';
+    const h3 = card.querySelector('h3');
+    h3?.insertAdjacentElement('afterend', meta);
+  }
+
+  const energyText = cleanText(card.querySelector('.card-pills span')?.textContent || '');
+  const cityText = project ? cleanText(project.city_ar || project.city_en || project.governorate) : '';
+  const capacityText = project ? cleanText(project.capacity) : '';
+
+  meta.textContent = '';
+
+  if (energyText) {
+    const energy = document.createElement('span');
+    energy.className = 'sr-card-energy-name';
+    energy.textContent = energyText;
+    meta.appendChild(energy);
+  }
+
+  if (cityText) {
+    const city = document.createElement('span');
+    city.className = 'sr-card-city';
+    city.textContent = cityText;
+    meta.appendChild(city);
+  }
+
+  if (capacityText) {
+    const capacity = document.createElement('span');
+    capacity.className = 'sr-card-capacity-inline';
+    capacity.textContent = capacityText;
+    meta.appendChild(capacity);
+  }
+}
+
 export default function MobileDensityToggle() {
   const [compact, setCompact] = useState(() => localStorage.getItem(STORAGE_KEY) !== 'comfort');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dark, setDark] = useState(() => localStorage.getItem(THEME_KEY) === 'dark');
   const [langLabel, setLangLabel] = useState('EN');
+  const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -54,6 +106,20 @@ export default function MobileDensityToggle() {
   }, [filtersOpen]);
 
   useEffect(() => {
+    let ok = true;
+    async function loadProjects() {
+      try {
+        const data = useFirebaseData ? await getFirebaseProjects() : getPublishedProjects();
+        if (ok) setProjects(data.filter((project) => project.is_published !== false));
+      } catch {
+        if (ok) setProjects(getPublishedProjects());
+      }
+    }
+    loadProjects();
+    return () => { ok = false; };
+  }, []);
+
+  useEffect(() => {
     const syncLabel = () => {
       const select = document.querySelector('.language-control select') as HTMLSelectElement | null;
       setLangLabel(select?.value === 'ar' ? 'EN' : 'عرب');
@@ -66,16 +132,18 @@ export default function MobileDensityToggle() {
   useEffect(() => {
     const decorateCards = () => {
       document.querySelectorAll<HTMLElement>('.modern-project-card').forEach((card) => {
+        const project = findProjectForCard(card, projects);
         const firstPill = card.querySelector('.card-pills span');
         const energyText = firstPill?.textContent ?? card.textContent ?? '';
         card.dataset.energySymbol = getEnergySymbol(energyText);
+        upsertMeta(card, project);
       });
     };
     decorateCards();
     const observer = new MutationObserver(decorateCards);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, []);
+  }, [projects]);
 
   const toggleLanguage = () => {
     const select = document.querySelector('.language-control select') as HTMLSelectElement | null;

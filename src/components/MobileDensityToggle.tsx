@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Project } from '../types/project';
 import { getPublishedProjects } from '../services/projectService';
 import { getFirebaseProjects, useFirebaseData } from '../services/firebaseProjectService';
+import ProjectNewsPanel from './ProjectNewsPanel';
 import '../styles/mobile-density.css';
 import '../styles/mobile-header-filter.css';
 import '../styles/card-energy-symbols.css';
@@ -14,34 +16,20 @@ const THEME_KEY = 'sr-theme-mode';
 type UiLanguage = 'ar' | 'en';
 
 const governorateLabels: Record<string, { ar: string; en: string }> = {
-  'aleppo': { ar: 'حلب', en: 'Aleppo' },
-  'حلب': { ar: 'حلب', en: 'Aleppo' },
-  'hama': { ar: 'حماة', en: 'Hama' },
-  'حماة': { ar: 'حماة', en: 'Hama' },
-  'homs': { ar: 'حمص', en: 'Homs' },
-  'حمص': { ar: 'حمص', en: 'Homs' },
-  'damascus': { ar: 'دمشق', en: 'Damascus' },
-  'دمشق': { ar: 'دمشق', en: 'Damascus' },
-  'rif-dimashq': { ar: 'ريف دمشق', en: 'Rif Dimashq' },
-  'ريف دمشق': { ar: 'ريف دمشق', en: 'Rif Dimashq' },
-  'idlib': { ar: 'إدلب', en: 'Idlib' },
-  'إدلب': { ar: 'إدلب', en: 'Idlib' },
-  'tartous': { ar: 'طرطوس', en: 'Tartous' },
-  'طرطوس': { ar: 'طرطوس', en: 'Tartous' },
-  'latakia': { ar: 'اللاذقية', en: 'Latakia' },
-  'اللاذقية': { ar: 'اللاذقية', en: 'Latakia' },
-  'deir-ez-zor': { ar: 'دير الزور', en: 'Deir ez-Zor' },
-  'دير الزور': { ar: 'دير الزور', en: 'Deir ez-Zor' },
-  'raqqa': { ar: 'الرقة', en: 'Raqqa' },
-  'الرقة': { ar: 'الرقة', en: 'Raqqa' },
-  'hasakah': { ar: 'الحسكة', en: 'Al-Hasakah' },
-  'الحسكة': { ar: 'الحسكة', en: 'Al-Hasakah' },
-  'daraa': { ar: 'درعا', en: 'Daraa' },
-  'درعا': { ar: 'درعا', en: 'Daraa' },
-  'sweida': { ar: 'السويداء', en: 'As-Suwayda' },
-  'السويداء': { ar: 'السويداء', en: 'As-Suwayda' },
-  'quneitra': { ar: 'القنيطرة', en: 'Quneitra' },
-  'القنيطرة': { ar: 'القنيطرة', en: 'Quneitra' }
+  'aleppo': { ar: 'حلب', en: 'Aleppo' }, 'حلب': { ar: 'حلب', en: 'Aleppo' },
+  'hama': { ar: 'حماة', en: 'Hama' }, 'حماة': { ar: 'حماة', en: 'Hama' },
+  'homs': { ar: 'حمص', en: 'Homs' }, 'حمص': { ar: 'حمص', en: 'Homs' },
+  'damascus': { ar: 'دمشق', en: 'Damascus' }, 'دمشق': { ar: 'دمشق', en: 'Damascus' },
+  'rif-dimashq': { ar: 'ريف دمشق', en: 'Rif Dimashq' }, 'ريف دمشق': { ar: 'ريف دمشق', en: 'Rif Dimashq' },
+  'idlib': { ar: 'إدلب', en: 'Idlib' }, 'إدلب': { ar: 'إدلب', en: 'Idlib' },
+  'tartous': { ar: 'طرطوس', en: 'Tartous' }, 'طرطوس': { ar: 'طرطوس', en: 'Tartous' },
+  'latakia': { ar: 'اللاذقية', en: 'Latakia' }, 'اللاذقية': { ar: 'اللاذقية', en: 'Latakia' },
+  'deir-ez-zor': { ar: 'دير الزور', en: 'Deir ez-Zor' }, 'دير الزور': { ar: 'دير الزور', en: 'Deir ez-Zor' },
+  'raqqa': { ar: 'الرقة', en: 'Raqqa' }, 'الرقة': { ar: 'الرقة', en: 'Raqqa' },
+  'hasakah': { ar: 'الحسكة', en: 'Al-Hasakah' }, 'الحسكة': { ar: 'الحسكة', en: 'Al-Hasakah' },
+  'daraa': { ar: 'درعا', en: 'Daraa' }, 'درعا': { ar: 'درعا', en: 'Daraa' },
+  'sweida': { ar: 'السويداء', en: 'As-Suwayda' }, 'السويداء': { ar: 'السويداء', en: 'As-Suwayda' },
+  'quneitra': { ar: 'القنيطرة', en: 'Quneitra' }, 'القنيطرة': { ar: 'القنيطرة', en: 'Quneitra' }
 };
 
 function triggerSelectChange(select: HTMLSelectElement, value: string) {
@@ -86,13 +74,11 @@ function projectTitle(project: Project, language: UiLanguage) {
 function cityLabel(project: Project, language: UiLanguage) {
   const direct = language === 'ar' ? project.city_ar : project.city_en;
   if (direct && (language === 'ar' || !hasArabic(direct))) return cleanText(direct);
-
   const keys = [project.governorate, project.city_ar, project.city_en].map(cleanText).filter(Boolean);
   for (const key of keys) {
     const label = governorateLabels[key] || governorateLabels[key.toLowerCase()];
     if (label) return label[language];
   }
-
   const fallback = cleanText(project.governorate || project.city_en || project.city_ar);
   return language === 'en' && hasArabic(fallback) ? 'Syria' : fallback;
 }
@@ -120,11 +106,9 @@ function buildMetaHtml(card: HTMLElement, project: Project | undefined, language
   const cityText = project ? cityLabel(project, language) : '';
   const capacityText = project ? cleanText(project.capacity) : '';
   const parts: string[] = [];
-
   if (energyText) parts.push(`<span class="sr-card-energy-name">${escapeHtml(energyText)}</span>`);
   if (cityText) parts.push(`<span class="sr-card-city">${escapeHtml(cityText)}</span>`);
   if (capacityText) parts.push(`<span class="sr-card-capacity-inline">${escapeHtml(capacityText)}</span>`);
-
   return parts.join('');
 }
 
@@ -143,7 +127,6 @@ function decorateVisibleCards(projects: Project[], language: UiLanguage) {
     const energyText = firstPill?.textContent ?? card.textContent ?? '';
     const symbol = getEnergySymbol(energyText);
     if (card.dataset.energySymbol !== symbol) card.dataset.energySymbol = symbol;
-
     const html = buildMetaHtml(card, project, language);
     let meta = card.querySelector<HTMLDivElement>('.sr-card-main-meta');
     if (!meta) {
@@ -164,7 +147,6 @@ function openProjectFromHash(projects: Project[]) {
   if (!slug || slug === 'admin' || document.querySelector('.project-details-page')) return;
   const project = projects.find((item) => item.slug === slug || item.id === slug);
   if (!project) return;
-
   const cards = Array.from(document.querySelectorAll<HTMLElement>('.modern-project-card'));
   const card = cards.find((item) => findProjectForCard(item, projects)?.id === project.id);
   card?.click();
@@ -178,6 +160,9 @@ export default function MobileDensityToggle() {
   const [activeLanguage, setActiveLanguage] = useState<UiLanguage>('ar');
   const [projects, setProjects] = useState<Project[]>([]);
   const [shareProject, setShareProject] = useState<Project | null>(null);
+  const [showNews, setShowNews] = useState(false);
+  const [tabHost, setTabHost] = useState<HTMLElement | null>(null);
+  const [pageHost, setPageHost] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -201,6 +186,12 @@ export default function MobileDensityToggle() {
       document.body.classList.remove('sr-filter-lock');
     };
   }, [filtersOpen]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('sr-news-open', showNews);
+    return () => root.classList.remove('sr-news-open');
+  }, [showNews]);
 
   useEffect(() => {
     let ok = true;
@@ -230,27 +221,39 @@ export default function MobileDensityToggle() {
   useEffect(() => {
     let cancelled = false;
     let runId = 0;
-
     const run = () => {
       const current = ++runId;
       window.setTimeout(() => {
         if (!cancelled && current === runId) {
           decorateVisibleCards(projects, activeLanguage);
           openProjectFromHash(projects);
+          const tabs = document.querySelector<HTMLElement>('.modern-tabs');
+          const page = document.querySelector<HTMLElement>('.tracker-page');
+          setTabHost(tabs);
+          setPageHost(page);
+          tabs?.classList.add('sr-has-news-tab');
         }
       }, 80);
     };
-
     run();
     const root = document.querySelector('.tracker-page');
     const observer = root ? new MutationObserver(run) : null;
     observer?.observe(root as Node, { childList: true, subtree: true });
-
     return () => {
       cancelled = true;
       observer?.disconnect();
     };
   }, [projects, activeLanguage]);
+
+  useEffect(() => {
+    const handleExistingTabClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const button = target?.closest('.modern-tabs button') as HTMLElement | null;
+      if (button && !button.classList.contains('sr-news-tab')) setShowNews(false);
+    };
+    document.addEventListener('click', handleExistingTabClick, true);
+    return () => document.removeEventListener('click', handleExistingTabClick, true);
+  }, []);
 
   useEffect(() => {
     const handleShareClick = (event: MouseEvent) => {
@@ -259,18 +262,16 @@ export default function MobileDensityToggle() {
       if (!button) return;
       const text = cleanText(button.textContent || '').toLowerCase();
       if (!text.includes('مشاركة') && !text.includes('share')) return;
-
       const card = button.closest('.modern-project-card') as HTMLElement | null;
       const project = card ? findProjectForCard(card, projects) : findCurrentDetailProject(projects);
       if (!project) return;
-
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
       setShareProject(project);
       setFiltersOpen(false);
+      setShowNews(false);
     };
-
     document.addEventListener('click', handleShareClick, true);
     return () => document.removeEventListener('click', handleShareClick, true);
   }, [projects]);
@@ -288,6 +289,7 @@ export default function MobileDensityToggle() {
   const shareTitle = shareProject ? projectTitle(shareProject, activeLanguage) : '';
   const shareUrl = shareProject ? projectShareUrl(shareProject) : '';
   const shareText = activeLanguage === 'ar' ? `مشروع من منصة بوابة الطاقة المتجددة في سوريا: ${shareTitle}` : `Project from Syrian Renewables: ${shareTitle}`;
+  const newsTabLabel = activeLanguage === 'ar' ? 'أخبار المشاريع' : 'Project news';
 
   const copyLink = async () => {
     if (!shareUrl) return;
@@ -308,6 +310,15 @@ export default function MobileDensityToggle() {
 
   return (
     <>
+      {tabHost && createPortal(
+        <button className={`tab outline sr-news-tab ${showNews ? 'active' : ''}`} type="button" onClick={() => { setShowNews(true); setFiltersOpen(false); }}>
+          {newsTabLabel}
+        </button>,
+        tabHost
+      )}
+
+      {showNews && pageHost && createPortal(<ProjectNewsPanel language={activeLanguage} />, pageHost)}
+
       <div className="mobile-header-tools" aria-label="أدوات العرض">
         <button type="button" onClick={toggleLanguage} aria-label="تبديل اللغة" title="تبديل اللغة">{langLabel}</button>
         <button type="button" onClick={() => setDark((value) => !value)} aria-label="تبديل الوضع الداكن والفاتح" title="داكن / فاتح">{dark ? '☀' : '☾'}</button>
@@ -318,23 +329,12 @@ export default function MobileDensityToggle() {
         <button type="button" onClick={() => setCompact(false)} aria-label="تكبير الكروت" title="تكبير الكروت">+</button>
       </div>
 
-      <button
-        className={`mobile-filter-floating ${filtersOpen ? 'is-open' : ''}`}
-        type="button"
-        onClick={() => setFiltersOpen((value) => !value)}
-        aria-label={filtersOpen ? 'إغلاق الفلاتر' : 'فتح البحث والفلاتر'}
-        title={filtersOpen ? 'إغلاق الفلاتر' : 'فتح البحث والفلاتر'}
-      >
+      <button className={`mobile-filter-floating ${filtersOpen ? 'is-open' : ''}`} type="button" onClick={() => setFiltersOpen((value) => !value)} aria-label={filtersOpen ? 'إغلاق الفلاتر' : 'فتح البحث والفلاتر'} title={filtersOpen ? 'إغلاق الفلاتر' : 'فتح البحث والفلاتر'}>
         <span aria-hidden="true">{filtersOpen ? '×' : '☰'}</span>
         <small>{filtersOpen ? 'إغلاق' : 'فلترة'}</small>
       </button>
 
-      <button
-        className="mobile-filter-overlay"
-        type="button"
-        aria-label="إغلاق الفلاتر"
-        onClick={() => setFiltersOpen(false)}
-      />
+      <button className="mobile-filter-overlay" type="button" aria-label="إغلاق الفلاتر" onClick={() => setFiltersOpen(false)} />
 
       {shareProject && (
         <section className="project-share-sheet" role="dialog" aria-modal="true" aria-label={activeLanguage === 'ar' ? 'مشاركة المشروع' : 'Share project'}>

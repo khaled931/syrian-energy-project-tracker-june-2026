@@ -6,14 +6,52 @@ import '../styles/mobile-density.css';
 import '../styles/mobile-header-filter.css';
 import '../styles/card-energy-symbols.css';
 import '../styles/simple-project-card.css';
+import '../styles/project-share-sheet.css';
 
 const STORAGE_KEY = 'sr-mobile-density';
 const THEME_KEY = 'sr-theme-mode';
+
+type UiLanguage = 'ar' | 'en';
+
+const governorateLabels: Record<string, { ar: string; en: string }> = {
+  'aleppo': { ar: 'حلب', en: 'Aleppo' },
+  'حلب': { ar: 'حلب', en: 'Aleppo' },
+  'hama': { ar: 'حماة', en: 'Hama' },
+  'حماة': { ar: 'حماة', en: 'Hama' },
+  'homs': { ar: 'حمص', en: 'Homs' },
+  'حمص': { ar: 'حمص', en: 'Homs' },
+  'damascus': { ar: 'دمشق', en: 'Damascus' },
+  'دمشق': { ar: 'دمشق', en: 'Damascus' },
+  'rif-dimashq': { ar: 'ريف دمشق', en: 'Rif Dimashq' },
+  'ريف دمشق': { ar: 'ريف دمشق', en: 'Rif Dimashq' },
+  'idlib': { ar: 'إدلب', en: 'Idlib' },
+  'إدلب': { ar: 'إدلب', en: 'Idlib' },
+  'tartous': { ar: 'طرطوس', en: 'Tartous' },
+  'طرطوس': { ar: 'طرطوس', en: 'Tartous' },
+  'latakia': { ar: 'اللاذقية', en: 'Latakia' },
+  'اللاذقية': { ar: 'اللاذقية', en: 'Latakia' },
+  'deir-ez-zor': { ar: 'دير الزور', en: 'Deir ez-Zor' },
+  'دير الزور': { ar: 'دير الزور', en: 'Deir ez-Zor' },
+  'raqqa': { ar: 'الرقة', en: 'Raqqa' },
+  'الرقة': { ar: 'الرقة', en: 'Raqqa' },
+  'hasakah': { ar: 'الحسكة', en: 'Al-Hasakah' },
+  'الحسكة': { ar: 'الحسكة', en: 'Al-Hasakah' },
+  'daraa': { ar: 'درعا', en: 'Daraa' },
+  'درعا': { ar: 'درعا', en: 'Daraa' },
+  'sweida': { ar: 'السويداء', en: 'As-Suwayda' },
+  'السويداء': { ar: 'السويداء', en: 'As-Suwayda' },
+  'quneitra': { ar: 'القنيطرة', en: 'Quneitra' },
+  'القنيطرة': { ar: 'القنيطرة', en: 'Quneitra' }
+};
 
 function triggerSelectChange(select: HTMLSelectElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value')?.set;
   setter?.call(select, value);
   select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function hasArabic(value?: string) {
+  return /[\u0600-\u06FF]/.test(String(value || ''));
 }
 
 function getEnergySymbol(text: string) {
@@ -36,15 +74,50 @@ function escapeHtml(value: string) {
   return value.replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char] || char));
 }
 
-function findProjectForCard(card: HTMLElement, projects: Project[]) {
-  const title = cleanText(card.querySelector('h3')?.textContent || '');
-  if (!title) return undefined;
-  return projects.find((project) => cleanText(project.title_ar) === title || cleanText(project.title_en) === title);
+function getActiveLanguage(): UiLanguage {
+  const select = document.querySelector('.language-control select') as HTMLSelectElement | null;
+  return select?.value === 'en' ? 'en' : 'ar';
 }
 
-function buildMetaHtml(card: HTMLElement, project?: Project) {
+function projectTitle(project: Project, language: UiLanguage) {
+  return language === 'ar' ? cleanText(project.title_ar || project.title_en) : cleanText(project.title_en || project.title_ar);
+}
+
+function cityLabel(project: Project, language: UiLanguage) {
+  const direct = language === 'ar' ? project.city_ar : project.city_en;
+  if (direct && (language === 'ar' || !hasArabic(direct))) return cleanText(direct);
+
+  const keys = [project.governorate, project.city_ar, project.city_en].map(cleanText).filter(Boolean);
+  for (const key of keys) {
+    const label = governorateLabels[key] || governorateLabels[key.toLowerCase()];
+    if (label) return label[language];
+  }
+
+  const fallback = cleanText(project.governorate || project.city_en || project.city_ar);
+  return language === 'en' && hasArabic(fallback) ? 'Syria' : fallback;
+}
+
+function projectShareUrl(project: Project) {
+  return `${window.location.origin}${window.location.pathname}#${encodeURIComponent(project.slug || project.id)}`;
+}
+
+function findProjectByTitle(title: string, projects: Project[]) {
+  const normalized = cleanText(title);
+  return projects.find((project) => cleanText(project.title_ar) === normalized || cleanText(project.title_en) === normalized);
+}
+
+function findProjectForCard(card: HTMLElement, projects: Project[]) {
+  return findProjectByTitle(card.querySelector('h3')?.textContent || '', projects);
+}
+
+function findCurrentDetailProject(projects: Project[]) {
+  const title = document.querySelector('.detail-content-card h2')?.textContent || '';
+  return findProjectByTitle(title, projects);
+}
+
+function buildMetaHtml(card: HTMLElement, project: Project | undefined, language: UiLanguage) {
   const energyText = cleanText(card.querySelector('.card-pills span')?.textContent || '');
-  const cityText = project ? cleanText(project.city_ar || project.city_en || project.governorate) : '';
+  const cityText = project ? cityLabel(project, language) : '';
   const capacityText = project ? cleanText(project.capacity) : '';
   const parts: string[] = [];
 
@@ -55,7 +128,15 @@ function buildMetaHtml(card: HTMLElement, project?: Project) {
   return parts.join('');
 }
 
-function decorateVisibleCards(projects: Project[]) {
+function decorateDetailLocation(projects: Project[], language: UiLanguage) {
+  const project = findCurrentDetailProject(projects);
+  const location = document.querySelector<HTMLElement>('.detail-location strong');
+  if (!project || !location) return;
+  const next = language === 'ar' ? `${cityLabel(project, 'ar')} – سوريا` : `${cityLabel(project, 'en')}, Syria`;
+  if (location.textContent !== next) location.textContent = next;
+}
+
+function decorateVisibleCards(projects: Project[], language: UiLanguage) {
   document.querySelectorAll<HTMLElement>('.modern-project-card').forEach((card) => {
     const project = findProjectForCard(card, projects);
     const firstPill = card.querySelector('.card-pills span');
@@ -63,7 +144,7 @@ function decorateVisibleCards(projects: Project[]) {
     const symbol = getEnergySymbol(energyText);
     if (card.dataset.energySymbol !== symbol) card.dataset.energySymbol = symbol;
 
-    const html = buildMetaHtml(card, project);
+    const html = buildMetaHtml(card, project, language);
     let meta = card.querySelector<HTMLDivElement>('.sr-card-main-meta');
     if (!meta) {
       meta = document.createElement('div');
@@ -75,6 +156,18 @@ function decorateVisibleCards(projects: Project[]) {
       meta.dataset.rendered = html;
     }
   });
+  decorateDetailLocation(projects, language);
+}
+
+function openProjectFromHash(projects: Project[]) {
+  const slug = decodeURIComponent(window.location.hash.replace('#', '') || '');
+  if (!slug || slug === 'admin' || document.querySelector('.project-details-page')) return;
+  const project = projects.find((item) => item.slug === slug || item.id === slug);
+  if (!project) return;
+
+  const cards = Array.from(document.querySelectorAll<HTMLElement>('.modern-project-card'));
+  const card = cards.find((item) => findProjectForCard(item, projects)?.id === project.id);
+  card?.click();
 }
 
 export default function MobileDensityToggle() {
@@ -82,7 +175,9 @@ export default function MobileDensityToggle() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dark, setDark] = useState(() => localStorage.getItem(THEME_KEY) === 'dark');
   const [langLabel, setLangLabel] = useState('EN');
+  const [activeLanguage, setActiveLanguage] = useState<UiLanguage>('ar');
   const [projects, setProjects] = useState<Project[]>([]);
+  const [shareProject, setShareProject] = useState<Project | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -123,8 +218,9 @@ export default function MobileDensityToggle() {
 
   useEffect(() => {
     const syncLabel = () => {
-      const select = document.querySelector('.language-control select') as HTMLSelectElement | null;
-      setLangLabel(select?.value === 'ar' ? 'EN' : 'عرب');
+      const language = getActiveLanguage();
+      setActiveLanguage(language);
+      setLangLabel(language === 'ar' ? 'EN' : 'عرب');
     };
     syncLabel();
     const interval = window.setInterval(syncLabel, 800);
@@ -138,7 +234,10 @@ export default function MobileDensityToggle() {
     const run = () => {
       const current = ++runId;
       window.setTimeout(() => {
-        if (!cancelled && current === runId) decorateVisibleCards(projects);
+        if (!cancelled && current === runId) {
+          decorateVisibleCards(projects, activeLanguage);
+          openProjectFromHash(projects);
+        }
       }, 80);
     };
 
@@ -151,6 +250,29 @@ export default function MobileDensityToggle() {
       cancelled = true;
       observer?.disconnect();
     };
+  }, [projects, activeLanguage]);
+
+  useEffect(() => {
+    const handleShareClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const button = target?.closest('button, a') as HTMLElement | null;
+      if (!button) return;
+      const text = cleanText(button.textContent || '').toLowerCase();
+      if (!text.includes('مشاركة') && !text.includes('share')) return;
+
+      const card = button.closest('.modern-project-card') as HTMLElement | null;
+      const project = card ? findProjectForCard(card, projects) : findCurrentDetailProject(projects);
+      if (!project) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      setShareProject(project);
+      setFiltersOpen(false);
+    };
+
+    document.addEventListener('click', handleShareClick, true);
+    return () => document.removeEventListener('click', handleShareClick, true);
   }, [projects]);
 
   const toggleLanguage = () => {
@@ -158,8 +280,30 @@ export default function MobileDensityToggle() {
     if (!select) return;
     const next = select.value === 'ar' ? 'en' : 'ar';
     triggerSelectChange(select, next);
+    setActiveLanguage(next);
     setLangLabel(next === 'ar' ? 'EN' : 'عرب');
-    window.setTimeout(() => decorateVisibleCards(projects), 120);
+    window.setTimeout(() => decorateVisibleCards(projects, next), 120);
+  };
+
+  const shareTitle = shareProject ? projectTitle(shareProject, activeLanguage) : '';
+  const shareUrl = shareProject ? projectShareUrl(shareProject) : '';
+  const shareText = activeLanguage === 'ar' ? `مشروع من منصة بوابة الطاقة المتجددة في سوريا: ${shareTitle}` : `Project from Syrian Renewables: ${shareTitle}`;
+
+  const copyLink = async () => {
+    if (!shareUrl) return;
+    await navigator.clipboard.writeText(shareUrl);
+  };
+
+  const nativeShare = async () => {
+    if (!shareProject || !navigator.share) {
+      await copyLink();
+      return;
+    }
+    await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
+  };
+
+  const openShareWindow = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer,width=820,height=680');
   };
 
   return (
@@ -191,6 +335,28 @@ export default function MobileDensityToggle() {
         aria-label="إغلاق الفلاتر"
         onClick={() => setFiltersOpen(false)}
       />
+
+      {shareProject && (
+        <section className="project-share-sheet" role="dialog" aria-modal="true" aria-label={activeLanguage === 'ar' ? 'مشاركة المشروع' : 'Share project'}>
+          <button className="share-backdrop" type="button" onClick={() => setShareProject(null)} aria-label="Close" />
+          <div className="share-card">
+            <button className="share-close" type="button" onClick={() => setShareProject(null)}>×</button>
+            <span className="share-eyebrow">{activeLanguage === 'ar' ? 'مشاركة المشروع' : 'Share this project'}</span>
+            <h3>{shareTitle}</h3>
+            <p>{activeLanguage === 'ar' ? 'اختر منصة المشاركة. سيتم مشاركة رابط هذا المشروع فقط.' : 'Choose a platform. Only this project link will be shared.'}</p>
+            <div className="share-actions-grid">
+              <button type="button" onClick={nativeShare}>↗ {activeLanguage === 'ar' ? 'مشاركة الهاتف' : 'Native share'}</button>
+              <button type="button" onClick={() => openShareWindow(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`)}>f Facebook</button>
+              <button type="button" onClick={() => openShareWindow(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`)}>in LinkedIn</button>
+              <button type="button" onClick={() => openShareWindow(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`)}>𝕏 / Twitter</button>
+              <button type="button" onClick={() => openShareWindow(`https://wa.me/?text=${encodeURIComponent(`${shareText}\n${shareUrl}`)}`)}>WhatsApp</button>
+              <button type="button" onClick={() => { window.location.href = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(`${shareText}\n${shareUrl}`)}`; }}>Email</button>
+              <button type="button" onClick={copyLink}>⧉ {activeLanguage === 'ar' ? 'نسخ الرابط' : 'Copy link'}</button>
+            </div>
+            <small>{activeLanguage === 'ar' ? 'ملاحظة: مشاركة إنستغرام تظهر عادة ضمن زر مشاركة الهاتف إذا كان التطبيق مثبتاً.' : 'Note: Instagram usually appears under Native Share if the app is installed.'}</small>
+          </div>
+        </section>
+      )}
     </>
   );
 }

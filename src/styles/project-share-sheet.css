@@ -1,0 +1,128 @@
+.project-share-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.share-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+}
+
+.share-card {
+  position: relative;
+  z-index: 2;
+  width: min(520px, 100%);
+  border-radius: 28px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.80);
+  box-shadow: 0 34px 90px rgba(15, 23, 42, 0.24);
+  display: grid;
+  gap: 14px;
+  color: #232B2B;
+}
+
+.share-close {
+  position: absolute;
+  inset-inline-end: 16px;
+  top: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(33, 122, 141, 0.14);
+  background: rgba(33, 122, 141, 0.08);
+  color: #217A8D;
+  font-size: 1.25rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.share-eyebrow {
+  color: #217A8D;
+  font-weight: 900;
+  font-size: 0.85rem;
+}
+
+.share-card h3 {
+  margin: 0;
+  padding-inline-end: 42px;
+  color: #217A8D;
+  line-height: 1.55;
+}
+
+.share-card p,
+.share-card small {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.7;
+  font-weight: 700;
+}
+
+.share-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.share-actions-grid button {
+  min-height: 44px;
+  border-radius: 16px;
+  border: 1px solid rgba(33, 122, 141, 0.14);
+  background: rgba(33, 122, 141, 0.08);
+  color: #217A8D;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.share-actions-grid button:hover {
+  transform: translateY(-1px);
+  background: rgba(33, 122, 141, 0.13);
+}
+
+html.sr-dark-theme .share-card {
+  background: rgba(8, 31, 36, 0.96);
+  color: #e5f3f5;
+  border-color: rgba(125, 211, 224, 0.18);
+}
+
+html.sr-dark-theme .share-card h3,
+html.sr-dark-theme .share-eyebrow {
+  color: #9ee8f1;
+}
+
+html.sr-dark-theme .share-card p,
+html.sr-dark-theme .share-card small {
+  color: #b7cfd4;
+}
+
+html.sr-dark-theme .share-actions-grid button,
+html.sr-dark-theme .share-close {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e5f3f5;
+}
+
+@media (max-width: 560px) {
+  .project-share-sheet {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .share-card {
+    border-radius: 24px;
+    padding: 20px;
+  }
+
+  .share-actions-grid {
+    grid-template-columns: 1fr;
+  }
+}
